@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Model weights / caches (weights are downloaded to the HF cache on first run;
+# never commit multi-GB checkpoints into the repo)
+.cache/
+hf_cache/
+*.safetensors
+*.bin
+*.gguf
+*.pt
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs / scratch
+*.log
+scratch/
+tmp/
+
+# Local agent tooling — generated cache, not needed to run the app
+# (.claude/ is kept in the repo: it holds project-specific Spec Kit skills)
+.code-review-graph/
