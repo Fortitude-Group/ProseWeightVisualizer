@@ -39,42 +39,88 @@ def _summary(verdict: Verdict) -> str:
     return "\n".join(lines)
 
 
+def _bar(weight: float, noise: bool, width: int = 18) -> str:
+    fill = round(max(0.0, min(weight, 100.0)) / 100.0 * width)
+    ch = "░" if noise else "█"
+    return ch * fill + "·" * (width - fill)
+
+
+def _readout(verdict) -> str:
+    r = verdict.run
+    lines = [
+        f"Prose Weight · Readout   model {r.subject_model.model_id}   suite {r.suite_version}"
+        f"   seed {r.seed}   {r.depth.replace('_', ' ')}",
+        f"{verdict.noise_floor_headline_pct:.0f}% of this prompt is below the noise floor.",
+        "",
+        f"  WGT  {'weight 0—100':<18}   {'95% CI':<10}  VERDICT        INSTRUCTION",
+    ]
+    for row in verdict.rows:
+        w = row.weight
+        tag = "◊ noise" if w.is_noise_floor else row.label.value
+        lines.append(
+            f"  {w.weight:3.0f}  {_bar(w.weight, w.is_noise_floor)}   "
+            f"[{w.ci_low:3.0f},{w.ci_high:3.0f}]  {tag:<13}  {row.instruction.text.strip()[:44]}"
+        )
+    if verdict.dead_weight:
+        lines.append("")
+        for d in verdict.dead_weight:
+            lines.append(f"  dead weight: {d.instruction_id} costs {d.token_cost} tokens/call for no effect")
+    lines.append("")
+    lines.append("Ablation-led · CI is a Bayesian credible interval · specific to this suite and model.")
+    return "\n".join(lines)
+
+
+# Local Ollama defaults (runs on a machine with an Ollama daemon).
+OLLAMA_SUBJECT = "qwen3.5:2b"
+OLLAMA_JUDGE = "qwen2.5:7b-instruct"
+OLLAMA_EMBED = "nomic-embed-text"
+
+
 @app.command()
 def scan(
     file: Path = typer.Argument(..., help="Prompt file to scan."),
-    depth: str = typer.Option("quick", help="quick | deep"),
-    seed: int = typer.Option(0),
-    model: str = typer.Option(RunConfig().subject_model),
-    judge: str = typer.Option("local", help="local | anthropic"),
+    backend: str = typer.Option("ollama", help="ollama | hf"),
+    depth: str = typer.Option("deep", help="quick | deep"),
+    probes: int = typer.Option(6, help="Probe-suite size (0 = all 12)."),
+    n: int = typer.Option(3, help="Samples per condition (deep audit)."),
+    seed: int = typer.Option(42),
+    subject: str = typer.Option(OLLAMA_SUBJECT, help="Ollama subject model."),
+    judge: str = typer.Option(OLLAMA_JUDGE, help="Ollama judge model."),
+    embed: str = typer.Option(OLLAMA_EMBED, help="Ollama embedding model."),
     json_out: str = typer.Option(None, "--json", help="Write report JSON ('-' for stdout)."),
 ):
-    """Segment, measure, and print the verdict for a prompt file."""
-    source = Path(file).read_text(encoding="utf-8")
-    cfg = RunConfig(
-        subject_model=model,
-        judge_backend="anthropic-api" if judge == "anthropic" else "local-hf",
-        seed=seed,
-        depth="deep_audit" if depth == "deep" else "quick_scan",
-    )
-    from proseweight.engine.hf_backend import HFMeasurementBackend
+    """Segment a prompt, measure each instruction by ablation, and print the readout."""
     from proseweight.probes.suite import load_suite
     from proseweight.segmentation.pipeline import segment_prompt
     from proseweight.verdict.orchestrator import run_verdict
 
+    source = Path(file).read_text(encoding="utf-8")
     suite_path = Path(__file__).resolve().parents[3] / "data" / "suites" / "default-v1.yaml"
     suite = load_suite(suite_path)
+    if probes:
+        suite.probes = suite.probes[: probes]
     segments = segment_prompt(source)
-    typer.echo(f"Segmented into {len(segments)} instructions.")
-    backend = HFMeasurementBackend(cfg)
-    bundle = backend.measure(source, segments, suite, cfg)  # raises without runtime
-    verdict = run_verdict(source, segments, suite, cfg, bundle)
+    depth_v = "deep_audit" if depth == "deep" else "quick_scan"
+    cfg = RunConfig(subject_model=subject, seed=seed, depth=depth_v, posterior_samples=3000, n_runs=n)
+
+    typer.echo(f"Segmented into {len(segments)} instructions. Measuring on {subject} via {backend}…")
+    if backend == "ollama":
+        from proseweight.engine.ollama_backend import OllamaMeasurementBackend
+
+        mb = OllamaMeasurementBackend(subject, judge, embed, seed=seed, n_samples=n, temperature=0.7)
+    else:
+        from proseweight.engine.hf_backend import HFMeasurementBackend
+
+        cfg.subject_model = subject
+        mb = HFMeasurementBackend(cfg)
+    bundle = mb.measure(source, segments, suite, cfg)
+    verdict = run_verdict(source, segments, suite, cfg, bundle, run_id="cli")
+
     if json_out:
         payload = json.dumps(verdict.to_dict(), indent=2)
-        if json_out == "-":
-            typer.echo(payload)
-        else:
-            Path(json_out).write_text(payload, encoding="utf-8")
-    typer.echo(_summary(verdict))
+        (typer.echo(payload) if json_out == "-" else Path(json_out).write_text(payload, encoding="utf-8"))
+    typer.echo("")
+    typer.echo(_readout(verdict))
 
 
 @app.command()
