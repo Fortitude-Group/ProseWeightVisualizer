@@ -51,7 +51,7 @@ proseweight = "proseweight.cli.main:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-proseweight = ["report/templates/*.jinja", "report/assets/fonts/*"]
+proseweight = ["report/templates/*.jinja", "report/assets/fonts/*", "report/assets/*.png"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

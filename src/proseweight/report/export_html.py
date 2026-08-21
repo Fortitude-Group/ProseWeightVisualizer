@@ -12,8 +12,8 @@ from proseweight.report.render import render_verdict_html
 from proseweight.report.schema import Verdict
 
 
-def export_html(verdict: Verdict, path: str | Path) -> Path:
-    html = render_verdict_html(verdict)
+def export_html(verdict: Verdict, path: str | Path, brand: bool = False) -> Path:
+    html = render_verdict_html(verdict, brand=brand)
     out = Path(path)
     out.write_text(html, encoding="utf-8")
     return out

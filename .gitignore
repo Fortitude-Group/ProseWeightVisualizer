@@ -40,3 +40,4 @@ tmp/
 # Local run artifacts
 results-ollama-verdict.json
 results/
+scratch-*

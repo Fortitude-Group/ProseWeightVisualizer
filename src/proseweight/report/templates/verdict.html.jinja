@@ -3,58 +3,199 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Prompt weight verdict</title>
+<title>Prompt weight readout</title>
 <style>
-  :root { --bg:#fff; --fg:#14201f; --muted:#5a6b6e; --teal:#155263; }
-  body { font-family: ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-         color: var(--fg); background: var(--bg); margin: 0; padding: 24px; line-height: 1.4; }
-  .headline { font-size: 1.4rem; font-weight: 700; color: var(--teal); margin: 0 0 4px; }
-  .scoping { color: var(--muted); font-size: .82rem; margin-bottom: 16px; }
-  .instr { font-family: ui-monospace,"Cascadia Code",Consolas,monospace; font-size: .82rem; }
-  .load_bearing { border-left: 4px solid #155263; }
-  .contributing { border-left: 4px solid #3c8da3; }
-  .decorative   { border-left: 4px solid #b7c4c9; }
-  .contradicted { border-left: 4px solid #c0532b; }
-  .row { padding: 6px 10px; margin: 3px 0; background: #f6f9f9; }
-  .noiseflag { color: #8a6d3b; font-weight: 600; }
-  .tabs input { display: none; }
-  .tabs label { display: inline-block; padding: 6px 12px; cursor: pointer; color: var(--muted); }
-  .tabs label:hover { color: var(--teal); }
-  .panel { display: none; padding-top: 12px; }
-  #t-verdict:checked ~ .panel-verdict, #t-how:checked ~ .panel-how { display: block; }
-  .w { font-weight: 700; } .ci { color: var(--muted); }
-  .note { color: var(--muted); font-size: .8rem; margin-top: 20px; border-top:1px solid #e3ebeb; padding-top:10px; }
+  :root{
+    --ink:#0e1f1e; --muted:#5b6f71; --faint:#8aa0a1;
+    --panel:#eef3f2; --card:#ffffff; --line:#d3e0df; --grid:#e4edec;
+    --teal:#155263; --teal-bright:#1e8fa8;
+    --c-load:#155263; --c-contrib:#4c9fb2; --c-decor:#a6bbbd; --c-contra:#c1552a;
+    --amber:#a8791f; --hatch:rgba(168,121,31,.18);
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"Cascadia Code","SF Mono",Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--panel);color:var(--ink);font-family:var(--sans);line-height:1.45;
+       -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:880px;margin:0 auto;padding:0 20px 64px;}
+
+  /* instrument header bar */
+  header{background:var(--teal);color:#dff0f2;margin:0 -20px 0;padding:13px 20px;
+         display:flex;align-items:center;justify-content:space-between;gap:16px;}
+  .mark{font-family:var(--mono);font-weight:600;letter-spacing:.14em;font-size:.82rem;text-transform:uppercase;}
+  .mark b{color:#fff}
+  .brandmark{display:flex;align-items:center;gap:12px;}
+  .logotile{flex:none;width:40px;height:40px;border-radius:7px;background:#eef4f3;
+            display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);}
+  .logotile img{width:30px;height:30px;display:block}
+  .bt{display:flex;flex-direction:column;line-height:1.08;}
+  .bt b{font-weight:700;font-size:.94rem;letter-spacing:.055em;text-transform:uppercase;color:#fff;}
+  .bt i{font-family:var(--mono);font-style:normal;font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:#a9d2da;margin-top:2px;}
+  .tabs{display:flex;gap:2px;font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;}
+  .tabs input{position:absolute;opacity:0;width:0;height:0;}
+  .tabs label{padding:5px 11px;cursor:pointer;color:#a9d2da;border:1px solid transparent;border-radius:2px;}
+  .tabs label:hover{color:#fff}
+
+  .panel{display:none;background:var(--card);border:1px solid var(--line);border-top:none;
+         padding:26px clamp(16px,4vw,40px) 34px;}
+  #t-verdict:checked ~ .body .panel-verdict{display:block}
+  #t-method:checked ~ .body .panel-method{display:block}
+
+  .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.13em;text-transform:uppercase;
+           color:var(--faint);border-bottom:1px solid var(--grid);padding-bottom:12px;margin-bottom:22px;
+           display:flex;flex-wrap:wrap;gap:6px 18px;}
+  .eyebrow b{color:var(--muted);font-weight:600}
+
+  /* headline */
+  .lead{display:flex;align-items:flex-start;gap:20px;margin-bottom:6px;}
+  .lead .fig{font-family:var(--mono);font-size:3.1rem;font-weight:600;line-height:.9;color:var(--teal);
+             font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+  .lead .say{font-size:1.18rem;font-weight:650;max-width:34ch;}
+  .lead .sub{color:var(--muted);font-size:.9rem;margin-top:5px;}
+  .lead .sub b{color:var(--amber);font-weight:650}
+
+  /* shared measurement grid */
+  .grid{display:grid;grid-template-columns:3rem 1fr 7.2rem;gap:0 14px;align-items:center;}
+  .axis{margin:26px 0 8px;color:var(--faint);}
+  .axis .ticks{position:relative;height:14px;font-family:var(--mono);font-size:.62rem;letter-spacing:.06em;}
+  .axis .ticks span{position:absolute;top:0;transform:translateX(-50%);}
+  .axis .ticks span:first-child{transform:none}
+  .axis .ticks span:last-child{transform:translateX(-100%)}
+  .axis .cap{font-family:var(--mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);text-align:right;}
+
+  /* one channel = one instruction */
+  .ch{padding:12px 0;border-top:1px solid var(--grid);}
+  .ch:last-child{border-bottom:1px solid var(--grid);}
+  .ch-w{font-family:var(--mono);font-weight:600;font-size:1.28rem;font-variant-numeric:tabular-nums;
+        text-align:right;color:var(--ink);}
+  .ch-tag{font-family:var(--mono);font-size:.63rem;letter-spacing:.09em;text-transform:uppercase;
+          text-align:right;color:var(--muted);white-space:nowrap;}
+
+  /* gauge: upper lane = credible-interval whisker (always on light track),
+     lower lane = solid magnitude bar. Uncertainty is never hidden by the fill. */
+  .gauge{position:relative;height:30px;border-radius:2px;background:
+         linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/25% 100%,var(--panel);
+         border:1px solid var(--line);overflow:hidden;}
+  .fill{position:absolute;left:0;bottom:0;height:15px;border-radius:0 1px 1px 0;transform-origin:left;}
+  .ci{position:absolute;top:6px;height:9px;
+      border-left:2px solid var(--teal);border-right:2px solid var(--teal);}
+  .ci::before{content:"";position:absolute;top:50%;left:0;right:0;height:2px;transform:translateY(-50%);
+      background:var(--teal);opacity:.5;}
+  .mk{position:absolute;top:3px;width:2px;height:15px;transform:translateX(-50%);background:var(--ink);}
+  .ci-lab{position:absolute;top:-2px;font-family:var(--mono);font-size:.58rem;color:var(--faint);
+      transform:translateX(-50%);}
+
+  .ch-text{grid-column:2/4;font-family:var(--mono);font-size:.82rem;color:#26403f;margin-top:9px;
+           padding-left:2px;overflow-wrap:anywhere;}
+
+  /* classification colours (fill + interval whisker follow the verdict) */
+  .load_bearing .fill{background:var(--c-load)} .load_bearing .ch-w{color:var(--c-load)}
+  .load_bearing .ci{border-color:var(--c-load)} .load_bearing .ci::before{background:var(--c-load)}
+  .contributing .fill{background:var(--c-contrib)}
+  .contributing .ci{border-color:var(--c-contrib)} .contributing .ci::before{background:var(--c-contrib)}
+  .decorative .fill{background:var(--c-decor)}
+  .decorative .ci{border-color:var(--c-decor)} .decorative .ci::before{background:var(--c-decor)}
+  .contradicted .fill{background:var(--c-contra)} .contradicted .ch-w{color:var(--c-contra)}
+  .contradicted .ch-tag{color:var(--c-contra)}
+  .contradicted .ci{border-color:var(--c-contra)} .contradicted .ci::before{background:var(--c-contra)}
+
+  /* noise floor: dimmed + hatched, honesty made visible */
+  .noise .gauge{background:repeating-linear-gradient(-45deg,var(--hatch) 0 5px,transparent 5px 10px),var(--panel);}
+  .noise .fill{background:var(--c-decor);opacity:.7}
+  .noise .ci{border-color:var(--amber)} .noise .ci::before{background:var(--amber)}
+  .noise .ch-w{color:var(--faint)}
+  .noise .ch-tag{color:var(--amber)}
+
+  .deadwt{margin-top:26px;border-top:1px solid var(--grid);padding-top:16px;}
+  .deadwt h3{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin:0 0 8px;}
+  .deadwt li{font-family:var(--mono);font-size:.8rem;color:var(--muted);}
+
+  .method p{max-width:64ch;color:#26403f}
+  .method .chart{margin-top:18px;overflow-x:auto}
+  .method svg{max-width:100%}
+
+  footer{font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;
+         color:var(--faint);margin-top:18px;text-align:center;}
+
+  @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  .fill{animation:grow .5s cubic-bezier(.2,.7,.3,1) both}
+  @media (prefers-reduced-motion:reduce){.fill{animation:none}}
+  @media (max-width:560px){
+    .grid{grid-template-columns:2.6rem 1fr;}
+    .ch-tag{grid-column:1/3;text-align:left;margin-top:4px}
+    .ch-text{grid-column:1/3}
+    .lead{flex-direction:column;gap:8px}
+  }
 </style>
 </head>
 <body>
-  <div class="tabs">
-    <input type="radio" name="tab" id="t-verdict" checked>
-    <input type="radio" name="tab" id="t-how">
-    <label for="t-verdict">Verdict</label><label for="t-how">How it works</label>
+<div class="wrap">
+  <input class="tabsrc" type="radio" name="tab" id="t-verdict" checked style="display:none">
+  <input class="tabsrc" type="radio" name="tab" id="t-method" style="display:none">
+  <header>
+    {% if brand %}
+    <span class="brandmark">{% if lion_uri %}<span class="logotile"><img src="{{ lion_uri }}" alt="Fortitude Omnis Group"></span>{% endif %}<span class="bt"><b>{{ brand_name }}</b><i>{{ brand_tagline }}</i></span></span>
+    {% else %}
+    <span class="mark">Prose Weight <b>· Readout</b></span>
+    {% endif %}
+    <span class="tabs"><label for="t-verdict">Verdict</label><label for="t-method">How it works</label></span>
+  </header>
 
-    <div class="panel panel-verdict">
-      <p class="headline">{{ headline }}% of this prompt is below the noise floor.</p>
-      <p class="scoping">Measured against suite {{ suite_version }} on {{ model }} · seed {{ seed }} · {{ depth }} · {{ reproducibility }}</p>
+  <div class="body">
+    <section class="panel panel-verdict">
+      <div class="eyebrow">
+        <span>Measured</span>
+        <span>suite <b>{{ suite_version }}</b></span>
+        <span>model <b>{{ model }}</b></span>
+        <span>seed <b>{{ seed }}</b></span>
+        <span><b>{{ depth }}</b></span>
+        <span><b>{{ reproducibility }}</b></span>
+      </div>
+
+      <div class="lead">
+        <div class="fig">{{ headline }}%</div>
+        <div>
+          <div class="say">of this prompt is below the noise floor</div>
+          <div class="sub">{{ n_carry }} of {{ n_rows }} instructions carry measurable weight{% if n_noise %} · <b>{{ n_noise }} decorative</b>{% endif %}. Weights are ablation-led, each with a 95% credible interval.</div>
+        </div>
+      </div>
+
+      <div class="grid axis">
+        <div class="cap">weight</div>
+        <div class="ticks"><span>0</span><span style="left:25%">25</span><span style="left:50%">50</span><span style="left:75%">75</span><span style="left:100%">100</span></div>
+        <div class="cap">verdict</div>
+      </div>
+
       {% for row in rows %}
-      <div class="row {{ row.label }}">
-        <span class="w">{{ row.weight }}</span>
-        <span class="ci">[{{ row.ci_low }}, {{ row.ci_high }}]</span>
-        {% if row.is_noise_floor %}<span class="noiseflag">◊ not distinguishable from noise</span>{% endif %}
-        <span class="badge">{{ row.label_h }}</span>
-        <div class="instr">{{ row.text }}</div>
+      <div class="grid ch {{ row.label }}{% if row.is_noise_floor %} noise{% endif %}">
+        <div class="ch-w">{{ row.weight }}</div>
+        <div class="gauge">
+          <div class="fill" style="width:{{ row.w_pct }}%"></div>
+          <div class="ci" style="left:{{ row.lo_pct }}%;width:{{ row.span_pct }}%"></div>
+          <div class="mk" style="left:{{ row.w_pct }}%"></div>
+        </div>
+        <div class="ch-tag">{% if row.is_noise_floor %}◊ noise{% else %}{{ row.label_h }}{% endif %}</div>
+        <div class="ch-text">{{ row.text }}</div>
       </div>
       {% endfor %}
-      {% if dead_weight %}
-      <h3>Dead weight (below the noise floor)</h3>
-      <ul>{% for d in dead_weight %}<li class="instr">{{ d.instruction_id }} — costs {{ d.token_cost }} tokens/call</li>{% endfor %}</ul>
-      {% endif %}
-    </div>
 
-    <div class="panel panel-how">
-      <p>Weights are led by <strong>ablation</strong> (remove an instruction, re-run the probe suite, measure the behavioural change), with token attention used only as a cheap pre-screen and an explainer — never as the verdict. Every number carries a Bayesian credible interval and is scoped to the probe suite and model above.</p>
-      <div class="chart">{{ chart_svg | safe }}</div>
-    </div>
+      {% if dead_weight %}
+      <div class="deadwt">
+        <h3>Dead weight · below the noise floor</h3>
+        <ul>{% for d in dead_weight %}<li>{{ d.instruction_id }} — costs {{ d.token_cost }} tokens per call for no measurable effect</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+
+      <footer>Ablation-led · attention is a pre-screen, never the verdict · weights are specific to this suite and model</footer>
+    </section>
+
+    <section class="panel panel-method">
+      <div class="method">
+        <p>Every weight is measured by <strong>ablation</strong>: remove an instruction, re-run a fixed probe suite, and measure how much the model's behaviour changes. Token <strong>attention</strong> is used only as a cheap pre-screen and a supporting visual, <strong>never</strong> as the verdict. Each score carries a Bayesian credible interval and is scoped to the suite and model above; the whisker on every bar shows that uncertainty.</p>
+        <div class="chart">{{ chart_svg | safe }}</div>
+      </div>
+    </section>
   </div>
-  <p class="note">Prose Weight Visualiser · ablation-led · weights are specific to this suite and model.</p>
+</div>
 </body>
 </html>

@@ -43,6 +43,8 @@ class DuelOutcome:
     p_in_rope: float
     effect_size: float
     rope_width: float
+    score_a: float = 0.0  # phrasing A mean compliance, 0-100
+    score_b: float = 0.0  # phrasing B mean compliance, 0-100
 
     def to_dict(self) -> dict:
         return {
@@ -51,6 +53,8 @@ class DuelOutcome:
             "p_in_rope": self.p_in_rope,
             "effect_size": self.effect_size,
             "rope_width": self.rope_width,
+            "score_a": self.score_a,
+            "score_b": self.score_b,
         }
 
 
@@ -74,4 +78,7 @@ def run_duel(
     comp_b = _compliance_composite(sb, named_generator(cfg.seed, "duel:b"), s)
     rope = 2.0 * max(sa.noise_sd, sb.noise_sd)
     res = duel_decision(comp_a, comp_b, rope, threshold)
-    return DuelOutcome(res.verdict, res.p_out_rope, res.p_in_rope, res.effect_size, rope)
+    return DuelOutcome(
+        res.verdict, res.p_out_rope, res.p_in_rope, res.effect_size, rope,
+        score_a=float(np.mean(comp_a) * 100.0), score_b=float(np.mean(comp_b) * 100.0),
+    )
