@@ -1,65 +1,133 @@
 # Prose Weight Visualiser
 
-Two prompts enter, one browser tab shows where the model *looks*.
+A measurement instrument and linter for prompts. Paste a system prompt, a `CLAUDE.md`, or a
+set of agent instructions, and get back which lines actually carry behavioural weight and
+which are ballast, measured empirically against a local model instead of argued from taste.
+Every score comes with a credible interval, and it runs entirely on your machine.
 
-Enter two adversarial prompts (e.g. a vivid, forceful directive vs. a beige, polite
-one), pick a local open-weights model, and see each prompt rendered as a token
-**attention heatmap**: warmer = more attention received from the model's generated
-tokens (averaged over layers, heads, and generation steps).
+It's ablation-led: to score a line, the tool removes it, re-runs a fixed suite of probe
+tasks, and measures how much the model's behaviour changed. Token attention is used only as
+a cheap pre-screen and an explainer, never as the verdict.
 
-> **Caveat:** attention shows where the model *looks*, not what it *obeys*. Behavioural
-> influence is measured by A/B output testing, not by staring at attention. This is the
-> anatomy demo.
+## What it does
 
-## What it shows
-
-- **Two views**, switchable via tabs:
-  - **Text heatmap** — the prompt rendered as prose with each content token shaded by
-    the attention it received.
-  - **Attention dots** — an animated SVG where each content token is a dot whose area
-    grows as generation proceeds (area = attention received); hover a dot for its value.
-- **Content-only scoring** — the chat scaffolding (system preamble, role markers,
-  `<|im_*|>` tokens, the first-token attention sink, structural newlines) is dimmed and
-  excluded, so the comparison reflects *your* prompts, not the wrapper.
-- **A-vs-B scoreboard** — two comparable metrics with a winner on each:
-  - *content attention share* — % of the model's attention that landed on the prompt's
-    content (a total; a longer/richer prompt can hold more), and
-  - *per content token* — that share divided by length, isolating per-word intensity.
+- Splits a prompt into discrete instructions.
+- Scores each one 0 to 100 by ablation, and classifies it load-bearing, contributing,
+  decorative, or contradicted.
+- Puts a Bayesian credible interval on every score, and marks a line as noise when its
+  effect can't be told apart from run-to-run variance, rather than dressing it up as a low
+  number.
+- Runs a phrasing duel: two wordings of the same instruction go head to head, and it names a
+  winner only when the difference clears a region of practical equivalence.
+- Two surfaces, same numbers: an interactive web app and a CLI.
 
 ## Requirements
 
-- Python 3.10+
-- A CUDA GPU is recommended (models load in **bfloat16**); CPU works but is slow.
+- Python 3.11 or newer.
+- A local model runtime. The easiest is [Ollama](https://ollama.com): no gated downloads, no
+  GPU wrangling, and it manages the models for you. A CUDA GPU helps but isn't required for
+  the small models.
+
+## Quickstart (Ollama, recommended)
+
+1. Install Ollama, then pull the three models it uses:
+
+   ```bash
+   ollama pull qwen3.5:2b            # subject: the model under test
+   ollama pull qwen2.5:7b-instruct   # judge: scores compliance (never judges itself)
+   ollama pull nomic-embed-text      # embedder: output-divergence signal
+   ```
+
+2. Install the package (editable, so the shipped probe suite is found in place):
+
+   ```bash
+   pip install -e ".[web]"
+   ```
+
+3. Run the web app:
+
+   ```bash
+   proseweight web
+   ```
+
+   Open <http://127.0.0.1:8790>, paste a prompt, and click **Measure weights**. The **Duel**
+   tab pits two phrasings against each other.
+
+Or measure straight from the command line:
 
 ```bash
-pip install torch transformers gradio accelerate
+proseweight scan your-prompt.txt --depth deep --probes 6 --n 3
 ```
 
-## Run
+You get a terminal readout with a weight bar, a 95% credible interval, and a verdict per
+line, plus a machine-readable report with `--json report.json`.
+
+A deep audit runs a lot of model calls and takes a few minutes; the 7B judge is the pacing
+item. Lower `--probes` and `--n` for a faster first look.
+
+## The models
+
+| Role     | Default               | Notes                                                        |
+|----------|-----------------------|--------------------------------------------------------------|
+| Subject  | `qwen3.5:2b`          | The model under test. A bigger subject (7B) discriminates better. |
+| Judge    | `qwen2.5:7b-instruct` | A different model, so nothing judges its own output.         |
+| Embedder | `nomic-embed-text`    | Semantic distance between outputs.                           |
+
+All swappable:
 
 ```bash
-python prose_weight_visualiser.py
+proseweight scan p.txt --subject qwen2.5:7b-instruct --judge qwen3.5:4b
 ```
 
-Then open **http://127.0.0.1:7860** and click **Fight**.
+## Commands
 
-The first run downloads the selected model's weights from the Hugging Face Hub (a few
-hundred MB for the 0.5B default), cached under your HF cache directory. Bundled model
-choices include `Qwen/Qwen2.5-0.5B-Instruct`, `Qwen/Qwen2.5-1.5B-Instruct`,
-`meta-llama/Llama-3.2-1B-Instruct`, and `gpt2`; you can also type any other Hugging Face
-model id into the dropdown.
+- `proseweight scan <file>` measure a prompt and print the readout (`--json` for the report)
+- `proseweight web` the interactive app (Scan and Duel)
+- `proseweight export <report.json> --html out.html [--png card.png]` a self-contained report
+- `proseweight diff <v1.json> <v2.json>` weight changes between two versions of a prompt
+- `proseweight lint <report.json> --baseline weights.json` CI gate; exits non-zero on a
+  load-bearing regression or a dead-weight budget breach
+- `proseweight serve` a small local HTTP API
 
-## How it works
+## How the weight is measured
 
-The app runs greedy generation with `output_attentions=True`, then for each generated
-step averages the last query row's attention over all layers and heads to get a
-per-prompt-token score, and averages those across steps. Scores are normalised against
-the mean of the **content** tokens only. Models are loaded with `bfloat16` on GPU
-(not `float16`) because Qwen2.5's large attention logits overflow fp16's range and
-`softmax` them into `NaN`, which corrupts the whole forward pass; bf16 has fp32's
-exponent range and is stable.
+For each instruction the tool removes it, re-runs the probe suite N times, and measures the
+behavioural delta against the full prompt. The delta blends three signals with fixed,
+documented weights: an LLM-judge rubric score, an embedding distance between outputs, and
+task-specific programmatic checks. The statistics are Bayesian throughout, computed in
+numpy: every weight is a posterior with a credible interval, and cross-instruction shrinkage
+does the job a multiple-comparisons correction would. Attention is a pre-screen that ranks
+which lines to ablate first, and an explainer under the "how it works" view. It never sets a
+score.
 
-## Notes
+## Honest limits
 
-- Runs entirely locally — no data leaves your machine.
-- Everything is in the single file `prose_weight_visualiser.py`.
+- Weights are specific to the probe suite and the model. There is no universal prompt score;
+  the model-comparison view exists instead.
+- Small models shift their output when you remove almost anything, so genuine dead weight is
+  hard to surface without a fuller probe suite and a larger subject model.
+- An optional frontier API judge (Anthropic, key from `ANTHROPIC_API_KEY` only) is available;
+  runs that use it are flagged best-effort and waive same-seed reproducibility.
+
+## Hugging Face runtime (instead of Ollama)
+
+```bash
+pip install -e ".[runtime]"
+proseweight scan p.txt --backend hf --subject Qwen/Qwen2.5-1.5B-Instruct
+```
+
+This downloads the weights from the Hugging Face Hub and, realistically, wants a GPU.
+
+## Predecessor
+
+The original single-file attention demo (`attnscope` / `attnduel`) still lives in
+`prose_weight_visualiser.py`. Its attention view became the "how it works" layer here, and
+its two-prompt fight became the phrasing duel.
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+pytest        # the deterministic engine is covered without any model runtime
+ruff check .
+```
