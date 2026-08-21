@@ -144,7 +144,8 @@ def run_verdict(
     judge_backend = (
         JudgeBackendKind.ANTHROPIC_API if cfg.uses_api_judge else JudgeBackendKind.LOCAL_HF
     )
-    repro = Reproducibility.BEST_EFFORT if cfg.uses_api_judge else Reproducibility.GUARANTEED
+    best_effort = cfg.uses_api_judge or bool(bundle.extra.get("best_effort"))
+    repro = Reproducibility.BEST_EFFORT if best_effort else Reproducibility.GUARANTEED
     run = RunMeta(
         run_id=run_id,
         subject_model=ModelRef(cfg.subject_model, runtime=bundle.runtime),

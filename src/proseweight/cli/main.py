@@ -116,6 +116,11 @@ def scan(
         from proseweight.engine.ollama_backend import OllamaMeasurementBackend
 
         mb = OllamaMeasurementBackend(subject, judge, embed, seed=seed, n_samples=n, temperature=0.7)
+    elif backend == "anthropic":
+        # Frontier subject via the API; judge + embedder stay local (Ollama).
+        from proseweight.engine.anthropic_backend import AnthropicSubjectBackend
+
+        mb = AnthropicSubjectBackend(subject, judge, embed, seed=seed, n_samples=n, temperature=0.7)
     else:
         from proseweight.engine.hf_backend import HFMeasurementBackend
 
