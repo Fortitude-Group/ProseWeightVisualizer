@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "proseweight"
+version = "0.1.0"
+description = "Prose Weight Visualiser: an ablation-led measurement instrument and linter for prompts."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "Fortitude Omnis", email = "dev@fortitude-omnis.group" }]
+
+# Core deterministic engine (no model runtime). These are light and pip-installable.
+dependencies = [
+    "numpy>=2.3,<2.4",
+    "scipy>=1.16,<1.17",
+    # NOTE: research pinned markdown-it-py==4.2.0, but mdit-py-plugins 0.4.2
+    # caps markdown-it-py<4 — relaxed to the compatible range they resolve to.
+    "markdown-it-py>=3,<4",
+    "mdit-py-plugins>=0.4,<0.5",
+    "pysbd==0.3.4",
+    "Jinja2==3.1.6",
+    "MarkupSafe==3.0.3",
+    "Pillow==12.3.0",
+    "PyYAML>=6.0",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+# Model runtime — heavy, GPU-oriented. Not required for the deterministic core or its tests.
+runtime = [
+    "torch",
+    "transformers",
+    "accelerate",
+    "sentence-transformers>=3.0,<4.0",
+    "bitsandbytes",
+    "outlines",
+    "llama-cpp-python",
+    "gradio",
+    "anthropic",
+]
+web = ["gradio"]
+api = ["fastapi", "uvicorn"]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+proseweight = "proseweight.cli.main:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+proseweight = ["report/templates/*.jinja", "report/assets/fonts/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+# UP042: `class X(str, Enum)` is a deliberate, widely-compatible idiom here.
+ignore = ["E501", "UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+# B008: Typer's Argument()/Option() defaults are function calls by design.
+"src/proseweight/cli/*.py" = ["B008"]

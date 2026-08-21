@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt weight verdict</title>
+<style>
+  :root { --bg:#fff; --fg:#14201f; --muted:#5a6b6e; --teal:#155263; }
+  body { font-family: ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+         color: var(--fg); background: var(--bg); margin: 0; padding: 24px; line-height: 1.4; }
+  .headline { font-size: 1.4rem; font-weight: 700; color: var(--teal); margin: 0 0 4px; }
+  .scoping { color: var(--muted); font-size: .82rem; margin-bottom: 16px; }
+  .instr { font-family: ui-monospace,"Cascadia Code",Consolas,monospace; font-size: .82rem; }
+  .load_bearing { border-left: 4px solid #155263; }
+  .contributing { border-left: 4px solid #3c8da3; }
+  .decorative   { border-left: 4px solid #b7c4c9; }
+  .contradicted { border-left: 4px solid #c0532b; }
+  .row { padding: 6px 10px; margin: 3px 0; background: #f6f9f9; }
+  .noiseflag { color: #8a6d3b; font-weight: 600; }
+  .tabs input { display: none; }
+  .tabs label { display: inline-block; padding: 6px 12px; cursor: pointer; color: var(--muted); }
+  .tabs label:hover { color: var(--teal); }
+  .panel { display: none; padding-top: 12px; }
+  #t-verdict:checked ~ .panel-verdict, #t-how:checked ~ .panel-how { display: block; }
+  .w { font-weight: 700; } .ci { color: var(--muted); }
+  .note { color: var(--muted); font-size: .8rem; margin-top: 20px; border-top:1px solid #e3ebeb; padding-top:10px; }
+</style>
+</head>
+<body>
+  <div class="tabs">
+    <input type="radio" name="tab" id="t-verdict" checked>
+    <input type="radio" name="tab" id="t-how">
+    <label for="t-verdict">Verdict</label><label for="t-how">How it works</label>
+
+    <div class="panel panel-verdict">
+      <p class="headline">{{ headline }}% of this prompt is below the noise floor.</p>
+      <p class="scoping">Measured against suite {{ suite_version }} on {{ model }} · seed {{ seed }} · {{ depth }} · {{ reproducibility }}</p>
+      {% for row in rows %}
+      <div class="row {{ row.label }}">
+        <span class="w">{{ row.weight }}</span>
+        <span class="ci">[{{ row.ci_low }}, {{ row.ci_high }}]</span>
+        {% if row.is_noise_floor %}<span class="noiseflag">◊ not distinguishable from noise</span>{% endif %}
+        <span class="badge">{{ row.label_h }}</span>
+        <div class="instr">{{ row.text }}</div>
+      </div>
+      {% endfor %}
+      {% if dead_weight %}
+      <h3>Dead weight (below the noise floor)</h3>
+      <ul>{% for d in dead_weight %}<li class="instr">{{ d.instruction_id }} — costs {{ d.token_cost }} tokens/call</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+
+    <div class="panel panel-how">
+      <p>Weights are led by <strong>ablation</strong> (remove an instruction, re-run the probe suite, measure the behavioural change), with token attention used only as a cheap pre-screen and an explainer — never as the verdict. Every number carries a Bayesian credible interval and is scoped to the probe suite and model above.</p>
+      <div class="chart">{{ chart_svg | safe }}</div>
+    </div>
+  </div>
+  <p class="note">Prose Weight Visualiser · ablation-led · weights are specific to this suite and model.</p>
+</body>
+</html>
