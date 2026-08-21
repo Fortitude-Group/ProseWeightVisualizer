@@ -64,12 +64,12 @@ description: "Task list for Prompt Weight Linter (Prose Weight Visualiser)"
 
 ### Signals
 
-- [ ] T018 [P] Implement the embedding-distance signal (bge-small-en-v1.5 @ pinned SHA, `1−cos_sim`, ceiling calibration hook) in `src/proseweight/engine/embedding.py`
-- [ ] T019 [P] Implement the `JudgeBackend` protocol + `LocalHFJudge` (Llama-3.1-8B 4-bit @ pinned SHA, grammar-constrained 0–4, independent scoring of full vs ablated) in `src/proseweight/judge/backend.py` and `judge/local.py`
+- [X] T018 [P] Implement the embedding-distance signal (bge-small-en-v1.5 @ pinned SHA, `1−cos_sim`, ceiling calibration hook) in `src/proseweight/engine/embedding.py`
+- [X] T019 [P] Implement the `JudgeBackend` protocol + `LocalHFJudge` (Llama-3.1-8B 4-bit @ pinned SHA, grammar-constrained 0–4, independent scoring of full vs ablated) in `src/proseweight/judge/backend.py` and `judge/local.py`
 - [X] T020 [US-shared] Implement judge-noise isolation (M-repeat `σ_judge²`) + a CI gate that fails if local greedy noise isn't near-zero, in `src/proseweight/judge/noise.py` — depends on T019
 - [X] T020a [US-shared] Implement the opt-in frontier `AnthropicAPIJudge` backend (FR-006b) in `src/proseweight/judge/api.py`: `claude-haiku-4-5` via forced structured output `{reasoning, score}`, key from `ANTHROPIC_API_KEY` env only (never a request/config field), SDK retry/backoff, and its own M-repeat `σ_judge²` measurement; when selected, set the run's `reproducibility: "best_effort"` flag and record `judge_backend: "anthropic-api"` (waiving SC-002 for that run) — depends on T019
 - [ ] T021 [US-shared] Implement instruction-level ablation + attention pre-screen aggregation in `src/proseweight/engine/ablation.py` (aggregate the token-core over segments; attention ranks candidates, never verdicts) — depends on T005, T012
-- [ ] T022 [P] Implement paraphrase generation + NLI intent gate + negation/modal backstop in `src/proseweight/engine/paraphrase.py`
+- [X] T022 [P] Implement paraphrase generation + NLI intent gate + negation/modal backstop in `src/proseweight/engine/paraphrase.py`
 
 ### Statistics + blend
 
@@ -94,8 +94,8 @@ description: "Task list for Prompt Weight Linter (Prose Weight Visualiser)"
 
 ### Tests for User Story 1
 
-- [ ] T027 [P] [US1] Gate A instrument-validity test in `tests/gates/test_gate_a.py` (planted load-bearing ranked above all no-ops, no-ops in noise floor, ≥90% of deep-audit runs)
-- [ ] T028 [P] [US1] Gate B reproducibility test in `tests/gates/test_gate_b.py` (same seed → identical verdict; different seeds → ≥85% classification agreement, disagreements interval-overlapping)
+- [X] T027 [P] [US1] Gate A instrument-validity test in `tests/gates/test_gate_a.py` (planted load-bearing ranked above all no-ops, no-ops in noise floor, ≥90% of deep-audit runs)
+- [X] T028 [P] [US1] Gate B reproducibility test in `tests/gates/test_gate_b.py` (same seed → identical verdict; different seeds → ≥85% classification agreement, disagreements interval-overlapping)
 - [X] T029 [P] [US1] Integration test for the scan journey in `tests/integration/test_scan_verdict.py`
 
 ### Implementation for User Story 1

@@ -133,6 +133,8 @@ def segment_prompt(source: str, split_model: SplitModel | None = None) -> list[S
         end = line_offs[min(tok.map[1], len(line_offs) - 1)]
         if tok.type == "fence" or tok.type == "code_block":
             block_events.append((start, end, "code_fence"))
+        elif tok.type == "html_block":
+            block_events.append((start, end, "html_block"))
         elif tok.type == "inline" and tok.content.strip():
             # inline content of a paragraph/heading/list item
             block_events.append((start, end, "prose"))
@@ -142,7 +144,7 @@ def segment_prompt(source: str, split_model: SplitModel | None = None) -> list[S
     events.sort(key=lambda t: t[0])
 
     for start, end, kind in events:
-        if kind in ("code_fence", "xml_block"):
+        if kind in ("code_fence", "xml_block", "html_block"):
             _emit(start, end, kind)
             continue
         # prose: split into sentences, then optional model clause split

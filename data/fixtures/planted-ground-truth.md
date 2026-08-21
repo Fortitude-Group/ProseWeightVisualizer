@@ -1,13 +1,13 @@
 # Planted ground-truth prompt (Gate A instrument-validity fixture)
 
 <!--
-  This fixture has KNOWN ground truth. Instructions marked [LB] are load-bearing:
+  This fixture has KNOWN ground truth. Load-bearing instructions carry the LB tag:
   the default probe suite directly tests the behaviour they govern, so ablating
-  them must move the probes. Instructions marked [NOOP] are planted no-ops:
-  decorative filler the probes cannot detect. Gate A (SC-001) requires the verdict
-  to rank every [LB] above every [NOOP] in >=90% of deep-audit runs, with the
-  [NOOP]s captured by the noise-floor state. The markers are stripped before a
-  real run; they exist so the gate harness can score the ranking.
+  them must move the probes. Planted no-ops carry the NOOP tag: decorative filler
+  the probes cannot detect. Gate A (SC-001) requires the verdict to rank every
+  load-bearing instruction above every no-op in at least 90 per cent of deep-audit
+  runs, with the no-ops captured by the noise-floor state. The tags are stripped
+  before a real run; they exist so the gate harness can score the ranking.
 -->
 
 ## Behaviour
