@@ -197,3 +197,25 @@ class OllamaMeasurementBackend:
             extra={"embedding_ceiling": ceiling, "ceiling_calibrated_on": "run"},
             calibration=calibration,
         )
+
+
+class OllamaDuelBackend(OllamaMeasurementBackend):
+    """Measures a phrasing's compliance across the probe suite (for phrasing duels)."""
+
+    def measure_phrasing(self, phrasing: str, suite, cfg):
+        from proseweight.duel.duel import PhrasingSignals
+
+        probes = suite.probes
+        # subject phase first (all generations), then judge/prog phase
+        outs = [self._gen_samples(phrasing, p.task) for p in probes]
+        judge = [
+            float(np.mean([self._judge_score(p.judge_criteria, o) for o in outs[i]]))
+            for i, p in enumerate(probes)
+        ]
+        passed = [
+            float(np.mean([self._prog_score(p, o) for o in outs[i]])) >= 0.5
+            for i, p in enumerate(probes)
+        ]
+        return PhrasingSignals(
+            judge=np.array(judge), passed=np.array(passed, dtype=bool), noise_sd=0.08
+        )
