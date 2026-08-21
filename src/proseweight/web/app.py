@@ -1,9 +1,10 @@
 """Interactive web app: paste a prompt, measure instruction weights, see the verdict.
 
-A small FastAPI app that wires the Ollama measurement backend to the browser and
-renders the branded verdict report. A real scan takes a few minutes (the deep
-audit runs many model calls), so the defaults are modest and the form warns about
-the wait. Run with ``proseweight web`` (or ``uvicorn proseweight.web.app:app``).
+A small FastAPI app that wires the measurement backend to the browser and renders
+the branded verdict report. The Scan and Duel input pages are the instrument's
+control panel: header and form live inside one cohesive faceplate card so they
+share a width, with the run settings grouped as labelled controls. A real scan
+takes a few minutes; the forms warn about the wait. Run with ``proseweight web``.
 """
 
 from __future__ import annotations
@@ -22,15 +23,12 @@ SUBJECT = "qwen3.5:2b"
 JUDGE = "qwen2.5:7b-instruct"
 EMBED = "nomic-embed-text"
 
-_SUITE_PATH = None  # resolved lazily
-
 SAMPLE_PROMPT = (
     "Return every answer as strict JSON only, with no prose.\n"
     "Never give a specific medication dosage; tell the user to consult a professional.\n"
     "Attempt the task directly and completely; never ask clarifying questions.\n"
     "Be genuinely helpful and thorough in everything you produce.\n"
 )
-
 
 FRONTIER_SUBJECT = "claude-opus-4-8"  # example used in the copy
 # Selectable frontier subjects (Anthropic). Any claude-* id routes to the API backend.
@@ -70,21 +68,6 @@ def _select(name: str, options: list[str], selected: str) -> str:
     return f'<select name="{name}">{opts}</select>'
 
 
-# A sticky top bar injected into result pages so there's always a way back.
-_APP_BAR = (
-    '<div style="background:#0b2e37;color:#dff0f2;padding:9px 20px;display:flex;align-items:center;'
-    'gap:16px;font-family:ui-monospace,Consolas,monospace;font-size:.72rem;letter-spacing:.06em;'
-    'text-transform:uppercase;position:sticky;top:0;z-index:60;">'
-    '<span style="opacity:.65;">Prose Weight Visualiser</span>'
-    '<a href="/" style="color:#fff;text-decoration:none;">&larr; New scan</a>'
-    '<a href="/duel" style="color:#a9d2da;text-decoration:none;">Duel</a></div>'
-)
-
-
-def _with_nav(html: str) -> str:
-    return html.replace("<body>", "<body>" + _APP_BAR, 1)
-
-
 def _subject_backend(subject: str, judge: str, n: int):
     """Pick the measurement backend from the chosen subject model."""
     if subject.startswith("claude"):
@@ -106,128 +89,168 @@ def _duel_backend(subject: str, judge: str, n: int):
     return OllamaDuelBackend(subject, judge, EMBED, seed=42, n_samples=n, temperature=0.7)
 
 
-def _landing(prompt: str = SAMPLE_PROMPT) -> str:
+# ── shared presentation ───────────────────────────────────────────────────────
+
+_STYLE = """<style>
+:root{
+  --ink:#12211f; --muted:#566a6c; --faint:#8399a1; --teal:#155263; --teal-bright:#1e8fa8;
+  --card:#ffffff; --line:#d6e2e1; --line-soft:#e6eeed; --field:#fbfdfd; --sub:#f4f8f7;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,"Cascadia Code","SF Mono",Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:radial-gradient(1200px 460px at 50% -160px,#dfeae9,#e6edec) fixed,#e6edec;
+     color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;}
+.shell{max-width:1040px;margin:0 auto;padding:44px 24px 96px;}
+.faceplate{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+           box-shadow:0 30px 70px -40px rgba(21,82,99,.5),0 2px 6px -2px rgba(21,82,99,.12);}
+
+.top{background:var(--teal);color:#e8f3f2;padding:17px clamp(20px,4vw,34px);
+     display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.brand{display:flex;align-items:center;gap:14px;min-width:0;}
+.tile{width:46px;height:46px;border-radius:10px;background:#eef4f3;display:flex;align-items:center;justify-content:center;flex:none;}
+.tile img{width:33px;height:33px;display:block}
+.bt{display:flex;flex-direction:column;line-height:1.12;min-width:0}
+.bt b{font-weight:800;font-size:1.02rem;letter-spacing:.045em;text-transform:uppercase;color:#fff;white-space:nowrap}
+.bt i{font-family:var(--mono);font-style:normal;font-size:.63rem;letter-spacing:.17em;text-transform:uppercase;color:#a9d2da;margin-top:3px}
+.tabs{display:flex;gap:3px;font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;flex:none;}
+.tabs a{color:#a9d2da;text-decoration:none;padding:9px 17px;border-radius:7px;transition:background .15s,color .15s;}
+.tabs a:hover{color:#fff;background:rgba(255,255,255,.09)}
+.tabs a.on{color:#fff;background:rgba(255,255,255,.16)}
+
+.body{padding:38px clamp(20px,4.5vw,52px) 46px;}
+.eyebrow{font-family:var(--mono);font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal-bright);margin:0 0 14px;}
+h1{font-size:clamp(1.6rem,3.4vw,2.05rem);font-weight:800;letter-spacing:-.015em;line-height:1.12;margin:0 0 10px;}
+.lede{color:var(--muted);margin:0 0 30px;max-width:64ch;font-size:1.04rem;}
+
+.field{margin-bottom:8px;}
+.fl{display:block;font-family:var(--mono);font-size:.66rem;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);margin-bottom:9px;}
+textarea{width:100%;min-height:240px;font-family:var(--mono);font-size:.9rem;line-height:1.6;padding:16px 18px;
+         border:1px solid var(--line);border-radius:10px;resize:vertical;color:var(--ink);background:var(--field);}
+textarea:focus{outline:none;border-color:var(--teal-bright);box-shadow:0 0 0 3px rgba(30,143,168,.16);}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.two textarea{min-height:190px;}
+@media(max-width:640px){.two{grid-template-columns:1fr}}
+
+.config{border:1px solid var(--line);border-radius:12px;background:var(--sub);padding:20px 22px 22px;margin:24px 0 28px;}
+.ct{font-family:var(--mono);font-size:.64rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+    margin:0 0 16px;display:flex;align-items:center;gap:10px;}
+.ct::after{content:"";flex:1;height:1px;background:var(--line);}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:18px;}
+.opt{display:flex;flex-direction:column;gap:7px;}
+.opt label{font-family:var(--mono);font-size:.62rem;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);}
+select{font-family:var(--mono);font-size:.83rem;padding:10px 11px;border:1px solid var(--line);border-radius:8px;
+       background:#fff;color:var(--ink);cursor:pointer;}
+select:focus{outline:none;border-color:var(--teal-bright);box-shadow:0 0 0 3px rgba(30,143,168,.16);}
+
+.actions{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+button{background:var(--teal);color:#fff;border:0;border-radius:9px;padding:15px 34px;font-family:var(--mono);
+       font-size:.83rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+       transition:background .15s,transform .12s,box-shadow .15s;}
+button:hover{background:#0f3d49;transform:translateY(-1px);box-shadow:0 12px 26px -14px rgba(21,82,99,.7);}
+.spin{display:none;font-family:var(--mono);font-size:.8rem;color:var(--teal);}
+form.busy .spin{display:inline}form.busy button{opacity:.5;pointer-events:none}
+.note{margin-top:28px;color:var(--muted);font-size:.86rem;max-width:66ch;border-top:1px solid var(--line-soft);padding-top:16px;}
+</style>"""
+
+
+def _page(active: str, tagline: str, body: str) -> str:
     logo = lion_data_uri()
-    tile = (
-        f'<span class="logotile"><img src="{logo}" alt="Fortitude Omnis Group"></span>'
-        if logo else ""
+    tile = f'<span class="tile"><img src="{logo}" alt="Fortitude Omnis Group"></span>' if logo else ""
+    nav = (
+        f'<span class="tabs">'
+        f'<a href="/" class="{"on" if active == "scan" else ""}">Scan</a>'
+        f'<a href="/duel" class="{"on" if active == "duel" else ""}">Duel</a></span>'
     )
+    return (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        "<title>Prose Weight Visualiser</title>" + _STYLE + "</head><body>"
+        '<div class="shell"><div class="faceplate">'
+        f'<div class="top"><span class="brand">{tile}'
+        f'<span class="bt"><b>Fortitude Omnis Group</b><i>{tagline}</i></span></span>{nav}</div>'
+        f'<div class="body">{body}</div>'
+        "</div></div></body></html>"
+    )
+
+
+# A sticky top bar injected into result pages so there's always a way back.
+_APP_BAR = (
+    '<div style="background:#0b2e37;color:#dff0f2;padding:10px 22px;display:flex;align-items:center;'
+    'gap:18px;font-family:ui-monospace,Consolas,monospace;font-size:.72rem;letter-spacing:.06em;'
+    'text-transform:uppercase;position:sticky;top:0;z-index:60;">'
+    '<span style="opacity:.65;">Prose Weight Visualiser</span>'
+    '<a href="/" style="color:#fff;text-decoration:none;">&larr; New scan</a>'
+    '<a href="/duel" style="color:#a9d2da;text-decoration:none;">Duel</a></div>'
+)
+
+
+def _with_nav(html: str) -> str:
+    return html.replace("<body>", "<body>" + _APP_BAR, 1)
+
+
+def _landing(prompt: str = SAMPLE_PROMPT) -> str:
     local = _ollama_models()
     subject_sel = _select("subject", local + FRONTIER_SUBJECTS, SUBJECT)
     judge_sel = _select("judge", local, JUDGE)
-    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>Prose Weight</title>
-<style>
-:root{{--ink:#0e1f1e;--muted:#5b6f71;--faint:#8aa0a1;--panel:#eef3f2;--card:#fff;--line:#d3e0df;
---teal:#155263;--mono:ui-monospace,"Cascadia Code",Consolas,monospace;
---sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}}
-*{{box-sizing:border-box}}body{{margin:0;background:var(--panel);color:var(--ink);font-family:var(--sans);}}
-.wrap{{max-width:820px;margin:0 auto;padding:0 20px 60px;}}
-header{{background:var(--teal);color:#dff0f2;margin:0 -20px;padding:13px 20px;display:flex;align-items:center;gap:12px;justify-content:space-between;}}
-.hl{{display:flex;align-items:center;gap:12px}}
-.logotile{{width:40px;height:40px;border-radius:7px;background:#eef4f3;display:flex;align-items:center;justify-content:center;}}
-.logotile img{{width:30px;height:30px;display:block}}
-.bt{{display:flex;flex-direction:column;line-height:1.08}}
-.bt b{{font-weight:700;font-size:.94rem;letter-spacing:.055em;text-transform:uppercase;color:#fff}}
-.bt i{{font-family:var(--mono);font-style:normal;font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:#a9d2da;margin-top:2px}}
-.nav{{display:flex;gap:4px;font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}}
-.nav a{{color:#a9d2da;text-decoration:none;padding:6px 12px;border-radius:3px}}
-.nav a:hover{{color:#fff}}.nav a.on{{color:#fff;background:rgba(255,255,255,.12)}}
-.two{{display:grid;grid-template-columns:1fr 1fr;gap:16px}}
-@media (max-width:560px){{.two{{grid-template-columns:1fr}}}}
-.panel{{background:var(--card);border:1px solid var(--line);border-top:none;padding:26px clamp(16px,4vw,40px) 32px;}}
-h1{{font-size:1.35rem;margin:0 0 4px}}.lede{{color:var(--muted);margin:0 0 20px;max-width:60ch}}
-label{{display:block;font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:16px 0 6px}}
-textarea{{width:100%;min-height:170px;font-family:var(--mono);font-size:.85rem;padding:12px;border:1px solid var(--line);border-radius:3px;resize:vertical;color:var(--ink)}}
-.opts{{display:flex;gap:18px;flex-wrap:wrap;margin-top:6px}}
-.opt{{display:flex;flex-direction:column}}.opt select,.opt input{{font-family:var(--mono);padding:6px 8px;border:1px solid var(--line);border-radius:3px}}
-button{{margin-top:20px;background:var(--teal);color:#fff;border:0;border-radius:3px;padding:12px 22px;font-family:var(--mono);font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}}
-button:hover{{background:#0f3d49}}
-.note{{margin-top:14px;color:var(--muted);font-size:.82rem}}
-.spin{{display:none;margin-top:16px;font-family:var(--mono);font-size:.8rem;color:var(--teal)}}
-form.busy .spin{{display:block}}form.busy button{{opacity:.5;pointer-events:none}}
-</style></head><body><div class="wrap">
-<header><span class="hl">{tile}<span class="bt"><b>Fortitude Omnis Group</b><i>Prose Weight · Readout</i></span></span>
-<nav class="nav"><a class="on" href="/">Scan</a><a href="/duel">Duel</a></nav></header>
-<section class="panel">
+    body = f"""
+<p class="eyebrow">Prompt profiler</p>
 <h1>Measure what your prompt actually does</h1>
-<p class="lede">Paste a system prompt or instruction list. Each line is ablated against a probe
-suite on a local model; you get back which instructions carry behavioural weight, with a
-credible interval on every score. Ablation-led, run locally via Ollama.</p>
+<p class="lede">Paste a system prompt or instruction list. Each line is ablated against a probe suite,
+so you get back which instructions carry behavioural weight and which are ballast, with a credible
+interval on every score. Ablation-led, run against a local model or a frontier one.</p>
 <form method="post" action="/scan" onsubmit="this.classList.add('busy')">
-<label>System prompt / instructions</label>
-<textarea name="prompt">{prompt}</textarea>
-<div class="opts">
-<div class="opt"><label>Subject model</label>{subject_sel}</div>
-<div class="opt"><label>Judge (local)</label>{judge_sel}</div>
-<div class="opt"><label>Probes</label><select name="probes"><option>4</option><option>6</option><option>12</option></select></div>
-<div class="opt"><label>Samples (N)</label><select name="n"><option>2</option><option>3</option><option>5</option></select></div>
-<div class="opt"><label>Depth</label><select name="depth"><option value="deep_audit">deep audit</option><option value="quick_scan">quick scan</option></select></div>
-</div>
-<button type="submit">Measure weights</button>
-<div class="spin">Measuring… ablating each instruction across the probe suite. This takes a few minutes; keep this tab open. A frontier subject ({FRONTIER_SUBJECT}) calls a paid API.</div>
+  <div class="field"><span class="fl">System prompt / instructions</span>
+    <textarea name="prompt" spellcheck="false">{prompt}</textarea></div>
+  <div class="config">
+    <p class="ct">Run configuration</p>
+    <div class="grid">
+      <div class="opt"><label>Subject model</label>{subject_sel}</div>
+      <div class="opt"><label>Judge (local)</label>{judge_sel}</div>
+      <div class="opt"><label>Probes</label><select name="probes"><option>4</option><option>6</option><option>12</option></select></div>
+      <div class="opt"><label>Samples (N)</label><select name="n"><option>2</option><option>3</option><option>5</option></select></div>
+      <div class="opt"><label>Depth</label><select name="depth"><option value="deep_audit">deep audit</option><option value="quick_scan">quick scan</option></select></div>
+    </div>
+  </div>
+  <div class="actions"><button type="submit">Measure weights</button>
+    <span class="spin">Measuring… ablating each instruction across the probe suite. A few minutes; keep this tab open.</span></div>
 </form>
-<p class="note">Pick the subject to profile. The judge and embedder stay local, so only a frontier subject costs money. {FRONTIER_SUBJECT} needs ANTHROPIC_API_KEY in the environment.</p>
-</section></div></body></html>"""
+<p class="note">Pick the subject to profile. The judge and embedder stay local, so only a frontier subject
+({FRONTIER_SUBJECT}) calls a paid API, which needs ANTHROPIC_API_KEY in the environment.</p>"""
+    return _page("scan", "Prose Weight · Readout", body)
 
 
 def _duel_landing(a: str = "BOIL THE OCEAN: do the complete, thorough job. Do not defer.",
                   b: str = "Please be thorough.") -> str:
-    logo = lion_data_uri()
-    tile = (f'<span class="logotile"><img src="{logo}" alt="Fortitude Omnis Group"></span>' if logo else "")
     local = _ollama_models()
     subject_sel = _select("subject", local + FRONTIER_SUBJECTS, SUBJECT)
     judge_sel = _select("judge", local, JUDGE)
-    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>Prose Weight · Duel</title>
-<style>
-:root{{--ink:#0e1f1e;--muted:#5b6f71;--faint:#8aa0a1;--panel:#eef3f2;--card:#fff;--line:#d3e0df;--teal:#155263;
---mono:ui-monospace,"Cascadia Code",Consolas,monospace;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}}
-*{{box-sizing:border-box}}body{{margin:0;background:var(--panel);color:var(--ink);font-family:var(--sans)}}
-.wrap{{max-width:820px;margin:0 auto;padding:0 20px 60px}}
-header{{background:var(--teal);color:#dff0f2;margin:0 -20px;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}}
-.hl{{display:flex;align-items:center;gap:12px}}
-.logotile{{width:40px;height:40px;border-radius:7px;background:#eef4f3;display:flex;align-items:center;justify-content:center}}
-.logotile img{{width:30px;height:30px;display:block}}
-.bt{{display:flex;flex-direction:column;line-height:1.08}}.bt b{{font-weight:700;font-size:.94rem;letter-spacing:.055em;text-transform:uppercase;color:#fff}}
-.bt i{{font-family:var(--mono);font-style:normal;font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:#a9d2da;margin-top:2px}}
-.nav{{display:flex;gap:4px;font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}}
-.nav a{{color:#a9d2da;text-decoration:none;padding:6px 12px;border-radius:3px}}.nav a:hover{{color:#fff}}.nav a.on{{color:#fff;background:rgba(255,255,255,.12)}}
-.panel{{background:var(--card);border:1px solid var(--line);border-top:none;padding:26px clamp(16px,4vw,40px) 32px}}
-h1{{font-size:1.35rem;margin:0 0 4px}}.lede{{color:var(--muted);margin:0 0 20px;max-width:60ch}}
-.two{{display:grid;grid-template-columns:1fr 1fr;gap:16px}}@media(max-width:560px){{.two{{grid-template-columns:1fr}}}}
-label{{display:block;font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:6px 0 6px}}
-textarea{{width:100%;min-height:120px;font-family:var(--mono);font-size:.85rem;padding:12px;border:1px solid var(--line);border-radius:3px;resize:vertical;color:var(--ink)}}
-.opts{{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px}}.opt{{display:flex;flex-direction:column}}
-.opt select{{font-family:var(--mono);padding:6px 8px;border:1px solid var(--line);border-radius:3px}}
-button{{margin-top:20px;background:var(--teal);color:#fff;border:0;border-radius:3px;padding:12px 22px;font-family:var(--mono);font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}}
-button:hover{{background:#0f3d49}}.note{{margin-top:14px;color:var(--muted);font-size:.82rem}}
-.spin{{display:none;margin-top:16px;font-family:var(--mono);font-size:.8rem;color:var(--teal)}}
-form.busy .spin{{display:block}}form.busy button{{opacity:.5;pointer-events:none}}
-</style></head><body><div class="wrap">
-<header><span class="hl">{tile}<span class="bt"><b>Fortitude Omnis Group</b><i>Prose Weight · Duel</i></span></span>
-<nav class="nav"><a href="/">Scan</a><a class="on" href="/duel">Duel</a></nav></header>
-<section class="panel">
+    body = f"""
+<p class="eyebrow">Phrasing duel</p>
 <h1>Which phrasing actually wins?</h1>
 <p class="lede">Two phrasings of the same instruction, measured head to head across the probe suite.
-The one the model complies with more wins, but only if the difference clears the region of
-practical equivalence. Proof of what matters, not what you assume.</p>
+The one the model complies with more wins, but only if the difference clears the region of practical
+equivalence. Proof of what matters, not what you assume.</p>
 <form method="post" action="/duel" onsubmit="this.classList.add('busy')">
-<div class="two">
-<div><label>Phrasing A</label><textarea name="phrasing_a">{a}</textarea></div>
-<div><label>Phrasing B</label><textarea name="phrasing_b">{b}</textarea></div>
-</div>
-<div class="opts">
-<div class="opt"><label>Subject model</label>{subject_sel}</div>
-<div class="opt"><label>Judge (local)</label>{judge_sel}</div>
-<div class="opt"><label>Probes</label><select name="probes"><option>4</option><option>6</option></select></div>
-<div class="opt"><label>Samples (N)</label><select name="n"><option>3</option><option>5</option></select></div>
-</div>
-<button type="submit">Run the duel</button>
-<div class="spin">Running the duel… measuring each phrasing across the probe suite. A few minutes; keep this tab open. A frontier subject ({FRONTIER_SUBJECT}) calls a paid API.</div>
+  <div class="two">
+    <div class="field"><span class="fl">Phrasing A</span><textarea name="phrasing_a" spellcheck="false">{a}</textarea></div>
+    <div class="field"><span class="fl">Phrasing B</span><textarea name="phrasing_b" spellcheck="false">{b}</textarea></div>
+  </div>
+  <div class="config">
+    <p class="ct">Run configuration</p>
+    <div class="grid">
+      <div class="opt"><label>Subject model</label>{subject_sel}</div>
+      <div class="opt"><label>Judge (local)</label>{judge_sel}</div>
+      <div class="opt"><label>Probes</label><select name="probes"><option>4</option><option>6</option></select></div>
+      <div class="opt"><label>Samples (N)</label><select name="n"><option>3</option><option>5</option></select></div>
+    </div>
+  </div>
+  <div class="actions"><button type="submit">Run the duel</button>
+    <span class="spin">Running the duel… measuring each phrasing across the probe suite. A few minutes; keep this tab open.</span></div>
 </form>
-<p class="note">The judge and embedder stay local, so only a frontier subject costs money.</p>
-</section></div></body></html>"""
+<p class="note">The judge and embedder stay local, so only a frontier subject ({FRONTIER_SUBJECT}) calls a paid API.</p>"""
+    return _page("duel", "Prose Weight · Duel", body)
 
 
 def create_app() -> FastAPI:
