@@ -51,7 +51,9 @@ a cheap pre-screen and an explainer, never as the verdict.
    ```
 
    Open <http://127.0.0.1:8790>, paste a prompt, and click **Measure weights**. The **Duel**
-   tab pits two phrasings against each other.
+   tab pits two phrasings against each other. Both pages have **Subject** and **Judge**
+   dropdowns: the subject list is populated from the models Ollama has pulled, plus the
+   Anthropic frontier models (Opus, Sonnet, Haiku, Fable); the judge stays local.
 
 Or measure straight from the command line:
 
@@ -108,6 +110,24 @@ score.
   hard to surface without a fuller probe suite and a larger subject model.
 - An optional frontier API judge (Anthropic, key from `ANTHROPIC_API_KEY` only) is available;
   runs that use it are flagged best-effort and waive same-seed reproducibility.
+
+## Frontier subjects (Anthropic)
+
+You can profile a closed API model as the subject instead of a local one, either from the
+**Subject** dropdown in the web app or from the command line:
+
+```bash
+proseweight scan p.txt --backend anthropic --subject claude-opus-4-8 --judge qwen2.5:7b-instruct
+```
+
+Any `claude-*` id works (Opus, Sonnet, Haiku, Fable). Only the subject's generations hit the
+paid API; the judge and embedder stay local, and the judge being a different model avoids
+self-judging. Three caveats: frontier models don't expose attention, so there's no attention
+view for these runs; they aren't seed-deterministic, so the run is flagged best-effort and
+same-seed reproducibility is waived; and they cost money, so a deep audit of a large prompt
+adds up. The key is read from `ANTHROPIC_API_KEY` in the environment only, and the CLI prints
+the token usage at the end so you can see what a run cost. The smaller models (Haiku, Fable)
+are far cheaper for a first pass.
 
 ## Hugging Face runtime (instead of Ollama)
 
