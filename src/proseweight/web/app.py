@@ -32,10 +32,70 @@ SAMPLE_PROMPT = (
 )
 
 
+FRONTIER_SUBJECT = "claude-opus-4-8"
+
+
 def _suite_path():
     from pathlib import Path
 
     return Path(__file__).resolve().parents[3] / "data" / "suites" / "default-v1.yaml"
+
+
+def _ollama_models() -> list[str]:
+    """Names of the models Ollama has pulled, for the selectors. Falls back to defaults."""
+    import json
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=3) as r:
+            data = json.loads(r.read())
+        names = sorted(m["name"] for m in data.get("models", []) if "embed" not in m["name"])
+        return names or [SUBJECT, JUDGE]
+    except Exception:
+        return [SUBJECT, JUDGE]
+
+
+def _select(name: str, options: list[str], selected: str) -> str:
+    opts = "".join(
+        f'<option{" selected" if o == selected else ""}>{o}</option>' for o in options
+    )
+    return f'<select name="{name}">{opts}</select>'
+
+
+# A sticky top bar injected into result pages so there's always a way back.
+_APP_BAR = (
+    '<div style="background:#0b2e37;color:#dff0f2;padding:9px 20px;display:flex;align-items:center;'
+    'gap:16px;font-family:ui-monospace,Consolas,monospace;font-size:.72rem;letter-spacing:.06em;'
+    'text-transform:uppercase;position:sticky;top:0;z-index:60;">'
+    '<span style="opacity:.65;">Prose Weight Visualiser</span>'
+    '<a href="/" style="color:#fff;text-decoration:none;">&larr; New scan</a>'
+    '<a href="/duel" style="color:#a9d2da;text-decoration:none;">Duel</a></div>'
+)
+
+
+def _with_nav(html: str) -> str:
+    return html.replace("<body>", "<body>" + _APP_BAR, 1)
+
+
+def _subject_backend(subject: str, judge: str, n: int):
+    """Pick the measurement backend from the chosen subject model."""
+    if subject.startswith("claude"):
+        from proseweight.engine.anthropic_backend import AnthropicSubjectBackend
+
+        return AnthropicSubjectBackend(subject, judge, EMBED, seed=42, n_samples=n, temperature=0.7)
+    from proseweight.engine.ollama_backend import OllamaMeasurementBackend
+
+    return OllamaMeasurementBackend(subject, judge, EMBED, seed=42, n_samples=n, temperature=0.7)
+
+
+def _duel_backend(subject: str, judge: str, n: int):
+    if subject.startswith("claude"):
+        from proseweight.engine.anthropic_backend import AnthropicDuelBackend
+
+        return AnthropicDuelBackend(subject, judge, EMBED, seed=42, n_samples=n, temperature=0.7)
+    from proseweight.engine.ollama_backend import OllamaDuelBackend
+
+    return OllamaDuelBackend(subject, judge, EMBED, seed=42, n_samples=n, temperature=0.7)
 
 
 def _landing(prompt: str = SAMPLE_PROMPT) -> str:
@@ -44,6 +104,9 @@ def _landing(prompt: str = SAMPLE_PROMPT) -> str:
         f'<span class="logotile"><img src="{logo}" alt="Fortitude Omnis Group"></span>'
         if logo else ""
     )
+    local = _ollama_models()
+    subject_sel = _select("subject", local + [FRONTIER_SUBJECT], SUBJECT)
+    judge_sel = _select("judge", local, JUDGE)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Prose Weight</title>
 <style>
@@ -87,14 +150,16 @@ credible interval on every score. Ablation-led, run locally via Ollama.</p>
 <label>System prompt / instructions</label>
 <textarea name="prompt">{prompt}</textarea>
 <div class="opts">
+<div class="opt"><label>Subject model</label>{subject_sel}</div>
+<div class="opt"><label>Judge (local)</label>{judge_sel}</div>
 <div class="opt"><label>Probes</label><select name="probes"><option>4</option><option>6</option><option>12</option></select></div>
 <div class="opt"><label>Samples (N)</label><select name="n"><option>2</option><option>3</option><option>5</option></select></div>
 <div class="opt"><label>Depth</label><select name="depth"><option value="deep_audit">deep audit</option><option value="quick_scan">quick scan</option></select></div>
 </div>
 <button type="submit">Measure weights</button>
-<div class="spin">Measuring… ablating each instruction across the probe suite on {SUBJECT}. This takes a few minutes; keep this tab open.</div>
+<div class="spin">Measuring… ablating each instruction across the probe suite. This takes a few minutes; keep this tab open. A frontier subject ({FRONTIER_SUBJECT}) calls a paid API.</div>
 </form>
-<p class="note">Subject {SUBJECT} · judge {JUDGE} · embedder {EMBED}, all local.</p>
+<p class="note">Pick the subject to profile. The judge and embedder stay local, so only a frontier subject costs money. {FRONTIER_SUBJECT} needs ANTHROPIC_API_KEY in the environment.</p>
 </section></div></body></html>"""
 
 
@@ -102,6 +167,9 @@ def _duel_landing(a: str = "BOIL THE OCEAN: do the complete, thorough job. Do no
                   b: str = "Please be thorough.") -> str:
     logo = lion_data_uri()
     tile = (f'<span class="logotile"><img src="{logo}" alt="Fortitude Omnis Group"></span>' if logo else "")
+    local = _ollama_models()
+    subject_sel = _select("subject", local + [FRONTIER_SUBJECT], SUBJECT)
+    judge_sel = _select("judge", local, JUDGE)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Prose Weight · Duel</title>
 <style>
@@ -142,13 +210,15 @@ practical equivalence. Proof of what matters, not what you assume.</p>
 <div><label>Phrasing B</label><textarea name="phrasing_b">{b}</textarea></div>
 </div>
 <div class="opts">
+<div class="opt"><label>Subject model</label>{subject_sel}</div>
+<div class="opt"><label>Judge (local)</label>{judge_sel}</div>
 <div class="opt"><label>Probes</label><select name="probes"><option>4</option><option>6</option></select></div>
 <div class="opt"><label>Samples (N)</label><select name="n"><option>3</option><option>5</option></select></div>
 </div>
 <button type="submit">Run the duel</button>
-<div class="spin">Running the duel… measuring each phrasing across the probe suite on {SUBJECT}. A few minutes; keep this tab open.</div>
+<div class="spin">Running the duel… measuring each phrasing across the probe suite. A few minutes; keep this tab open. A frontier subject ({FRONTIER_SUBJECT}) calls a paid API.</div>
 </form>
-<p class="note">Subject {SUBJECT} · judge {JUDGE}, all local.</p>
+<p class="note">The judge and embedder stay local, so only a frontier subject costs money.</p>
 </section></div></body></html>"""
 
 
@@ -162,22 +232,22 @@ def create_app() -> FastAPI:
     @app.post("/scan", response_class=HTMLResponse)
     def scan(
         prompt: str = Form(...),
+        subject: str = Form(SUBJECT),
+        judge: str = Form(JUDGE),
         probes: int = Form(4),
         n: int = Form(2),
         depth: str = Form("deep_audit"),
     ) -> str:
-        from proseweight.engine.ollama_backend import OllamaMeasurementBackend
-
         suite = load_suite(_suite_path())
         suite.probes = suite.probes[: max(1, probes)]
         segments = segment_prompt(prompt)
         if not segments:
             return _landing(prompt)
-        cfg = RunConfig(subject_model=SUBJECT, seed=42, depth=depth, posterior_samples=3000, n_runs=n)
-        backend = OllamaMeasurementBackend(SUBJECT, JUDGE, EMBED, seed=42, n_samples=n, temperature=0.7)
+        cfg = RunConfig(subject_model=subject, seed=42, depth=depth, posterior_samples=3000, n_runs=n)
+        backend = _subject_backend(subject, judge, n)
         bundle = backend.measure(prompt, segments, suite, cfg)
         verdict = run_verdict(prompt, segments, suite, cfg, bundle, run_id="web")
-        return render_verdict_html(verdict, brand=True)
+        return _with_nav(render_verdict_html(verdict, brand=True))
 
     @app.get("/duel", response_class=HTMLResponse)
     def duel_page() -> str:
@@ -187,21 +257,22 @@ def create_app() -> FastAPI:
     def duel(
         phrasing_a: str = Form(...),
         phrasing_b: str = Form(...),
+        subject: str = Form(SUBJECT),
+        judge: str = Form(JUDGE),
         probes: int = Form(4),
         n: int = Form(3),
     ) -> str:
         from proseweight.duel.duel import run_duel
-        from proseweight.engine.ollama_backend import OllamaDuelBackend
         from proseweight.report.duel_render import render_duel_html
 
         suite = load_suite(_suite_path())
         suite.probes = suite.probes[: max(1, probes)]
-        cfg = RunConfig(subject_model=SUBJECT, seed=42, posterior_samples=3000, n_runs=n)
-        backend = OllamaDuelBackend(SUBJECT, JUDGE, EMBED, seed=42, n_samples=n, temperature=0.7)
+        cfg = RunConfig(subject_model=subject, seed=42, posterior_samples=3000, n_runs=n)
+        backend = _duel_backend(subject, judge, n)
         outcome = run_duel(phrasing_a, phrasing_b, backend, suite, cfg)
-        return render_duel_html(
-            outcome, phrasing_a, phrasing_b, suite_version=suite.version, model=SUBJECT, brand=True
-        )
+        return _with_nav(render_duel_html(
+            outcome, phrasing_a, phrasing_b, suite_version=suite.version, model=subject, brand=True
+        ))
 
     return app
 

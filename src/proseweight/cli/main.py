@@ -134,6 +134,13 @@ def scan(
         (typer.echo(payload) if json_out == "-" else Path(json_out).write_text(payload, encoding="utf-8"))
     typer.echo("")
     typer.echo(_readout(verdict))
+    usage = getattr(mb, "usage", None)
+    if usage and usage.get("calls"):
+        typer.echo(
+            f"\nAPI usage ({subject}): {usage['calls']} calls · "
+            f"{usage['input']:,} input + {usage['output']:,} output tokens "
+            f"(multiply by your model's per-token rate for cost)."
+        )
 
 
 @app.command()
