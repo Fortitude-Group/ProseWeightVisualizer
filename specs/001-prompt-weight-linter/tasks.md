@@ -197,8 +197,8 @@ description: "Task list for Prompt Weight Linter (Prose Weight Visualiser)"
 
 **Independent Test**: Each device is measured as its own variant; the report states, per device and model, whether it moved weight beyond the noise floor.
 
-- [ ] T052 [P] [US6] Integration test in `tests/integration/test_emphasis.py`
-- [ ] T053 [US6] Implement emphasis-variant generation + matrix run (reuses duel machinery) in `src/proseweight/duel/emphasis.py` — depends on T050
+- [X] T052 [P] [US6] Integration test in `tests/integration/test_emphasis.py`
+- [X] T053 [US6] Implement emphasis-variant generation + matrix run (reuses duel machinery) in `src/proseweight/duel/emphasis.py` — depends on T050
 
 **Checkpoint**: US6 independently functional.
 
@@ -210,8 +210,8 @@ description: "Task list for Prompt Weight Linter (Prose Weight Visualiser)"
 
 **Independent Test**: A weight with interval is reported for each position; positions shown side by side for the same model.
 
-- [ ] T054 [P] [US7] Integration test in `tests/integration/test_position.py`
-- [ ] T055 [US7] Implement position-sweep measurement in `src/proseweight/duel/position.py` (+ `position` CLI command) — depends on T021, T023
+- [X] T054 [P] [US7] Integration test in `tests/integration/test_position.py`
+- [X] T055 [US7] Implement position-sweep measurement in `src/proseweight/duel/position.py` (+ `position` CLI command) — depends on T021, T023
 
 **Checkpoint**: US7 independently functional.
 
@@ -257,7 +257,7 @@ description: "Task list for Prompt Weight Linter (Prose Weight Visualiser)"
 
 - [X] T061 [US10] Implement self-contained HTML export (inline all CSS/SVG, injectable timestamp, content-derived ids) in `src/proseweight/report/export_html.py` — depends on T035, T036
 - [X] T062 [P] [US10] Implement the deterministic Pillow PNG summary card (checked-in font, no metadata chunks) in `src/proseweight/report/png_card.py` — depends on T004
-- [ ] T063 [US10] Wire `export` CLI command and duel/diff export in `src/proseweight/cli/main.py`
+- [X] T063 [US10] Wire `export` CLI command and duel/diff export in `src/proseweight/cli/main.py`
 
 **Checkpoint**: Release 2 complete — duels, emphasis, position, grid, diff, export.
 

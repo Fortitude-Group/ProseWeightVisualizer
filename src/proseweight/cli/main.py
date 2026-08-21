@@ -78,10 +78,60 @@ def scan(
 
 
 @app.command()
-def export(report: Path, html: str = typer.Option(...), png: str = typer.Option(None)):
+def export(
+    report: Path,
+    html: str = typer.Option(..., "--html", help="Output HTML path."),
+    png: str = typer.Option(None, "--png", help="Optional PNG summary-card path."),
+):
     """Export a stored report JSON as self-contained HTML (+ optional PNG card)."""
-    typer.echo("Loading report and rendering self-contained HTML …")
-    # (rehydration of a stored verdict -> render_verdict_html; PNG via png_card)
+    from proseweight.report.export_html import export_html
+    from proseweight.report.png_card import export_png_card
+    from proseweight.report.store import load_verdict
+
+    verdict = load_verdict(report)
+    out = export_html(verdict, html)
+    typer.echo(f"Wrote self-contained HTML: {out}")
+    if png:
+        export_png_card(verdict, png)
+        typer.echo(f"Wrote PNG summary card: {png}")
+
+
+@app.command("diff")
+def diff_cmd(
+    v1: Path = typer.Argument(..., help="Baseline verdict JSON."),
+    v2: Path = typer.Argument(..., help="New verdict JSON."),
+    json_out: str = typer.Option(None, "--json"),
+):
+    """Diff two stored verdicts (weight changes, added/removed, regressions)."""
+    from proseweight.diff.diff import diff_verdicts
+    from proseweight.report.store import load_verdict
+
+    d = diff_verdicts(load_verdict(v1), load_verdict(v2))
+    if json_out:
+        payload = json.dumps(d.to_dict(), indent=2)
+        (typer.echo(payload) if json_out == "-" else Path(json_out).write_text(payload, encoding="utf-8"))
+    typer.echo(f"{len(d.regressions)} regression(s), {len(d.added)} added, {len(d.removed)} removed.")
+    for r in d.regressions:
+        typer.echo(f"  REGRESSION {r.delta:+.0f}: {r.text[:60]}")
+    if d.blend_config_changed:
+        typer.echo("  NOTE: blend config differs between runs (confound, not a regression).")
+
+
+@app.command()
+def lint(
+    report: Path = typer.Argument(..., help="Current verdict JSON."),
+    baseline: str = typer.Option(..., "--baseline", help="Baseline weights JSON."),
+):
+    """CI gate: fail if a load-bearing instruction regressed or dead weight grew."""
+    from proseweight.ci.lint import Baseline
+    from proseweight.ci.lint import lint as run_lint
+    from proseweight.report.store import load_verdict
+
+    result = run_lint(load_verdict(report), Baseline.load(baseline))
+    for m in result.messages:
+        typer.echo(m)
+    typer.echo("OK" if result.ok else f"FAILED (exit {result.exit_code})")
+    raise typer.Exit(result.exit_code)
 
 
 if __name__ == "__main__":
