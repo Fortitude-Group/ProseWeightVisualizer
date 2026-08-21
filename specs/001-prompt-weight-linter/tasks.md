@@ -328,11 +328,11 @@ description: "Task list for Prompt Weight Linter (Prose Weight Visualiser)"
 
 ## Phase 17: Polish & Cross-Cutting Concerns
 
-- [ ] T073 [P] Complete comprehensive unit coverage of public contracts + edge cases (interrupted run, all-below-noise, interval-overlapping ties, empty prompt) in `tests/unit/`
-- [ ] T074 [P] Enforce the ablation-led ordering structurally on every surface (web, CLI, export, methodology) — audit + test in `tests/integration/test_ablation_led_ordering.py`
-- [ ] T074a [P] Enforce the no-jailbreak/no-bypass guardrail (FR-036): audit every public surface and marketing/methodology copy so duel mode reads as comparing legitimate-instruction phrasings and no copy implies bypass-finding — assertion test in `tests/integration/test_no_bypass_copy.py`
+- [X] T073 [P] Complete comprehensive unit coverage of public contracts + edge cases (interrupted run, all-below-noise, interval-overlapping ties, empty prompt) in `tests/unit/`
+- [X] T074 [P] Enforce the ablation-led ordering structurally on every surface (web, CLI, export, methodology) — audit + test in `tests/integration/test_ablation_led_ordering.py`
+- [X] T074a [P] Enforce the no-jailbreak/no-bypass guardrail (FR-036): audit every public surface and marketing/methodology copy so duel mode reads as comparing legitimate-instruction phrasings and no copy implies bypass-finding — assertion test in `tests/integration/test_no_bypass_copy.py`
 - [ ] T075 [US5] Run and publish the flagship BOIL-vs-beige duel with full data regardless of outcome (Gate C, SC-012) as the Release 2 article in `docs/` — depends on T050
-- [ ] T076 [P] Add the HTML export size-budget regression guard and PNG determinism guard to CI
+- [X] T076 [P] Add the HTML export size-budget regression guard and PNG determinism guard to CI
 - [ ] T077 Run `npx @claude-flow/cli@latest security scan` and address findings; confirm no secrets/keys in source (API key env-only)
 - [ ] T078 Execute `quickstart.md` end-to-end (all 7 R1 scenarios + R2/R3 spot-checks) and record results
 - [ ] T079 Mirror the task list to the ADO board (project ProseWeightVisualizer): Epic → Feature (per release) → Story (US1–US14) → Task, and link commits by hash (Principle VII)
