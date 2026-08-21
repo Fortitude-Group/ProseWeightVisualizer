@@ -40,8 +40,8 @@ runtime = [
     "gradio",
     "anthropic",
 ]
-web = ["gradio"]
-api = ["fastapi", "uvicorn"]
+web = ["fastapi>=0.110", "uvicorn>=0.30", "python-multipart>=0.0.9"]
+api = ["fastapi>=0.110", "uvicorn>=0.30"]
 dev = ["pytest>=8", "ruff>=0.6", "fastapi>=0.110", "httpx>=0.27", "uvicorn>=0.30"]
 
 [project.scripts]

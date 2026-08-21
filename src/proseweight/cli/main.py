@@ -143,5 +143,14 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8799))
     uvicorn.run("proseweight.api.server:app", host=host, port=port, log_level="info")
 
 
+@app.command()
+def web(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8790)):
+    """Start the interactive web app (paste a prompt, measure weights, see the verdict)."""
+    import uvicorn
+
+    typer.echo(f"Prose Weight web app on http://{host}:{port}  (paste a prompt and measure)")
+    uvicorn.run("proseweight.web.app:app", host=host, port=port, log_level="warning")
+
+
 if __name__ == "__main__":
     app()
