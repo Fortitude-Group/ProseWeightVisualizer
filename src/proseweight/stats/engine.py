@@ -121,7 +121,12 @@ def empirical_bayes_shrink(theta_hat: np.ndarray, sigma2: np.ndarray) -> ShrunkP
     tau2 = max(0.0, num / denom) if denom > _EPS else 0.0
     b = sigma2 / (sigma2 + tau2)  # shrinkage factor per instruction
     theta = b * mu + (1.0 - b) * theta_hat
-    var = (1.0 - b) * sigma2
+    # Posterior variance must account for the uncertainty in the estimated grand
+    # mean, otherwise heavy shrinkage (b -> 1) collapses the interval to zero
+    # width, which is dishonest. var_mu is the variance of the precision-weighted
+    # grand mean.
+    var_mu = 1.0 / np.sum(prec)
+    var = (1.0 - b) * sigma2 + (b**2) * var_mu
     return ShrunkPosterior(theta, var, mu, tau2)
 
 

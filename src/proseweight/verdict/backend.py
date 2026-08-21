@@ -35,9 +35,13 @@ class MeasurementBundle:
 
     instructions: list[InstructionMeasurement]
     noise_sd: dict[str, float]  # null-condition SD per signal (judge/prog/embed)
-    ceiling: float  # calibration composite (bare-task strip) for the 0-100 scale
+    ceiling: float  # fallback 0-100 scale ceiling if no calibration measurement
     runtime: str = "cpu"
     extra: dict = field(default_factory=dict)
+    # The whole-prompt-vs-bare condition. Its composite is the 0-100 ceiling: a
+    # single instruction's weight is its effect as a fraction of the whole
+    # prompt's effect (research.md R1 step 6). Preferred over ``ceiling``.
+    calibration: InstructionMeasurement | None = None
 
 
 class MeasurementBackend(Protocol):

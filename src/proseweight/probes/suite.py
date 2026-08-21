@@ -46,9 +46,30 @@ class Probe:
     category: str
     vars: dict[str, Any]
     signal_types: tuple[str, ...]
+    assertions: tuple = ()  # raw promptfoo assert dicts, for real check/judge use
 
     def has_prog_check(self) -> bool:
         return "PROG" in self.signal_types
+
+    @property
+    def task(self) -> str:
+        return str(self.vars.get("task", ""))
+
+    @property
+    def judge_criteria(self) -> list[str]:
+        """The llm-rubric criterion strings (what the judge actually scores)."""
+        return [str(a.get("value", "")) for a in self.assertions if a.get("type") == "llm-rubric"]
+
+    @property
+    def prog_assertions(self) -> list[dict]:
+        """Python-runnable programmatic assertions (excludes file:// js/py checks)."""
+        out = []
+        for a in self.assertions:
+            t = a.get("type", "")
+            base = t[4:] if t.startswith("not-") else t
+            if base in ("is-json", "is-refusal", "contains", "contains-all", "regex"):
+                out.append(a)
+        return out
 
 
 @dataclass
@@ -96,7 +117,7 @@ def parse_suite(config: dict[str, Any], origin: str = "shipped") -> ProbeSuite:
         category = tmeta.get("category", "unclassified")
         assertions = test.get("assert", []) or []
         sigs = tuple(tmeta.get("signal_types", ())) or signal_types_for(assertions)
-        probes.append(Probe(pid, category, test.get("vars", {}) or {}, sigs))
+        probes.append(Probe(pid, category, test.get("vars", {}) or {}, sigs, tuple(assertions)))
     return ProbeSuite(
         version=version,
         content_hash=canonical_hash(config),

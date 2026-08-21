@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import hashlib
+
 import numpy as np
 
 from proseweight.config import RunConfig
 from proseweight.duel.duel import PhrasingSignals, run_duel
+
+
+def _stable_seed(text: str) -> int:
+    return int.from_bytes(hashlib.md5(text.encode()).digest()[:4], "big")
 
 
 class FakeDuelBackend:
@@ -16,7 +22,7 @@ class FakeDuelBackend:
         self.n_probes = n_probes
 
     def measure_phrasing(self, phrasing, suite, cfg) -> PhrasingSignals:
-        rng = np.random.default_rng(self.seed + hash(phrasing) % 1000)
+        rng = np.random.default_rng(self.seed + _stable_seed(phrasing) % 1000)
         if "[WIN]" in phrasing:
             judge = np.clip(rng.normal(0.9, 0.03, self.n_probes), 0, 1)
             passed = rng.random(self.n_probes) > 0.1

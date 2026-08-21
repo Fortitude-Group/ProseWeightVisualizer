@@ -87,7 +87,15 @@ def run_verdict(
     sigma2 = np.array([float(np.var(c)) + 1e-9 for c in composites])
     shrunk = empirical_bayes_shrink(theta_hat, sigma2)
 
-    ceiling = max(bundle.ceiling, 1e-9)
+    # Ceiling = composite effect of removing the WHOLE prompt (calibration), so a
+    # single instruction's weight is a fraction of the whole-prompt effect.
+    if bundle.calibration is not None:
+        cal_composite = _composite_for_instruction(
+            bundle.calibration, weights, bundle.noise_sd, blend, s, cfg.seed
+        )
+        ceiling = max(float(np.mean(cal_composite)), 1e-9)
+    else:
+        ceiling = max(bundle.ceiling, 1e-9)
     rows: list[ClassifiedRow] = []
     dead: list[DeadWeightItem] = []
 

@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
+
 import numpy as np
 
 from proseweight.config import RunConfig
 from proseweight.duel.duel import PhrasingSignals
 from proseweight.duel.emphasis import emphasis_variants, run_emphasis_audit
 from proseweight.duel.position import POSITIONS, reposition, run_position_sweep
+
+
+def _stable_seed(text: str) -> int:
+    return int.from_bytes(hashlib.md5(text.encode()).digest()[:4], "big")
 
 
 def test_emphasis_variants_cover_devices():
@@ -25,7 +31,7 @@ class CapsWinsBackend:
     """A model where ALL-CAPS phrasings comply more strongly; others tie the plain."""
 
     def measure_phrasing(self, phrasing, suite, cfg) -> PhrasingSignals:
-        rng = np.random.default_rng(abs(hash(phrasing)) % 1000)
+        rng = np.random.default_rng(_stable_seed(phrasing) % 1000)
         if phrasing.isupper():
             judge = np.clip(rng.normal(0.9, 0.03, 12), 0, 1)
             passed = rng.random(12) > 0.1

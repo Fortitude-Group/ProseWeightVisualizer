@@ -36,3 +36,7 @@ tmp/
 # Local agent tooling — generated cache, not needed to run the app
 # (.claude/ is kept in the repo: it holds project-specific Spec Kit skills)
 .code-review-graph/
+
+# Local run artifacts
+results-ollama-verdict.json
+results/
