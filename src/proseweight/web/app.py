@@ -32,7 +32,15 @@ SAMPLE_PROMPT = (
 )
 
 
-FRONTIER_SUBJECT = "claude-opus-4-8"
+FRONTIER_SUBJECT = "claude-opus-4-8"  # example used in the copy
+# Selectable frontier subjects (Anthropic). Any claude-* id routes to the API backend.
+FRONTIER_SUBJECTS = [
+    "claude-opus-4-8",
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "claude-haiku-4-5-20251001",
+    "claude-fable-5",
+]
 
 
 def _suite_path():
@@ -105,7 +113,7 @@ def _landing(prompt: str = SAMPLE_PROMPT) -> str:
         if logo else ""
     )
     local = _ollama_models()
-    subject_sel = _select("subject", local + [FRONTIER_SUBJECT], SUBJECT)
+    subject_sel = _select("subject", local + FRONTIER_SUBJECTS, SUBJECT)
     judge_sel = _select("judge", local, JUDGE)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Prose Weight</title>
@@ -168,7 +176,7 @@ def _duel_landing(a: str = "BOIL THE OCEAN: do the complete, thorough job. Do no
     logo = lion_data_uri()
     tile = (f'<span class="logotile"><img src="{logo}" alt="Fortitude Omnis Group"></span>' if logo else "")
     local = _ollama_models()
-    subject_sel = _select("subject", local + [FRONTIER_SUBJECT], SUBJECT)
+    subject_sel = _select("subject", local + FRONTIER_SUBJECTS, SUBJECT)
     judge_sel = _select("judge", local, JUDGE)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Prose Weight · Duel</title>
