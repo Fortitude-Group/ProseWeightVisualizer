@@ -8,12 +8,20 @@ HF backend lazily and error cleanly without the runtime extra.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import typer
 
 from proseweight.config import RunConfig
 from proseweight.report.schema import Verdict
+
+# The readout uses block glyphs; force UTF-8 so it renders on a Windows cp1252 console.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 
 app = typer.Typer(add_completion=False, help="Prose Weight Visualiser — prompt weight linter.")
 
@@ -52,7 +60,7 @@ def _readout(verdict) -> str:
         f"   seed {r.seed}   {r.depth.replace('_', ' ')}",
         f"{verdict.noise_floor_headline_pct:.0f}% of this prompt is below the noise floor.",
         "",
-        f"  WGT  {'weight 0—100':<18}   {'95% CI':<10}  VERDICT        INSTRUCTION",
+        f"  WGT  {'weight 0-100':<18}   {'95% CI':<10}  VERDICT        INSTRUCTION",
     ]
     for row in verdict.rows:
         w = row.weight
