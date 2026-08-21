@@ -134,5 +134,14 @@ def lint(
     raise typer.Exit(result.exit_code)
 
 
+@app.command()
+def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8799)):
+    """Start the local watch-mode HTTP API (loopback, single-tenant)."""
+    import uvicorn
+
+    typer.echo(f"Serving proseweight API on http://{host}:{port} (loopback).")
+    uvicorn.run("proseweight.api.server:app", host=host, port=port, log_level="info")
+
+
 if __name__ == "__main__":
     app()

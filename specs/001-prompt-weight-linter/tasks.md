@@ -290,7 +290,7 @@ description: "Task list for Prompt Weight Linter (Prose Weight Visualiser)"
 ### Implementation for User Story 12
 
 - [X] T068 [US12] Implement baseline compare + exit-code logic + `--update-baseline` in `src/proseweight/ci/lint.py` — depends on T059, T009
-- [ ] T069 [P] [US12] Author the GitHub Action wrapper in `src/proseweight/ci/action/` (+ `action.yml`)
+- [X] T069 [P] [US12] Author the GitHub Action wrapper in `src/proseweight/ci/action/` (+ `action.yml`)
 
 **Checkpoint**: US12 independently functional.
 
@@ -304,11 +304,11 @@ description: "Task list for Prompt Weight Linter (Prose Weight Visualiser)"
 
 ### Tests for User Story 13
 
-- [ ] T070 [P] [US13] Contract test for the API in `tests/contract/test_api.py` per [contracts/api.md](./contracts/api.md) (health, segment, weight, scan, runs; key never in body)
+- [X] T070 [P] [US13] Contract test for the API in `tests/contract/test_api.py` per [contracts/api.md](./contracts/api.md) (health, segment, weight, scan, runs; key never in body)
 
 ### Implementation for User Story 13
 
-- [ ] T071 [US13] Implement the FastAPI daemon (health/segment/weight/scan/runs[/events]) + `serve` CLI command in `src/proseweight/api/server.py` — depends on T030, T009
+- [X] T071 [US13] Implement the FastAPI daemon (health/segment/weight/scan/runs[/events]) + `serve` CLI command in `src/proseweight/api/server.py` — depends on T030, T009
 
 **Checkpoint**: US13 independently functional.
 

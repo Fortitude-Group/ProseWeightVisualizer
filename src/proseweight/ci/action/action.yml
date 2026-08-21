@@ -1,0 +1,21 @@
+name: "Prompt weight lint"
+description: "Fail the build if a load-bearing instruction regresses or dead weight grows beyond budget."
+author: "Fortitude Omnis"
+
+inputs:
+  report:
+    description: "Path to the current run's verdict JSON."
+    required: true
+  baseline:
+    description: "Path to the checked-in baseline weights JSON."
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install proseweight
+      shell: bash
+      run: pip install -e .
+    - name: Lint prompt weights against baseline
+      shell: bash
+      run: proseweight lint "${{ inputs.report }}" --baseline "${{ inputs.baseline }}"
