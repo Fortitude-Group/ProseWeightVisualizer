@@ -1,8 +1,9 @@
 """`proseweight cache <sub>` command group (contracts/cli.md).
 
-Registered additively onto the existing `proseweight` app (T004); no change to the
-`001` commands. Release 1 ships `cache lint` (the zero-data instant-proof surface,
-US2). `serve` / `ingest` / `analyse` / `ledger` / `export` land in later increments.
+Registered additively onto the existing `proseweight` app; no change to the `001`
+commands. Subcommands: `lint` (static, and the `--baseline` CI gate), `serve` (the
+recording proxy), `ingest` (transcripts, `--reconstruct` for high fidelity),
+`analyse`, `ledger`, `export`, and `prune`.
 """
 
 from __future__ import annotations
@@ -98,10 +99,17 @@ def serve_cmd(
 def ingest_cmd(
     paths: list[str] = typer.Argument(..., help="Claude Code .jsonl transcript files or a directory of them."),
     db: str = typer.Option("cache.db", "--db", help="Capture store path."),
+    reconstruct: bool = typer.Option(False, "--reconstruct", help="High-fidelity growing-history reconstruction with calibrated confidence (US7)."),
 ) -> None:
     """Ingest Claude Code session transcripts (US1, subscription path) into the capture store."""
     from proseweight.cache.core.store import CacheStore
-    from proseweight.cache.ingest.claude_code import ingest_transcript
+
+    if reconstruct:
+        from proseweight.cache.ingest.claude_code_reconstruct import (
+            reconstruct_transcript as ingest_transcript,
+        )
+    else:
+        from proseweight.cache.ingest.claude_code import ingest_transcript
 
     targets: list[Path] = []
     for raw in paths:

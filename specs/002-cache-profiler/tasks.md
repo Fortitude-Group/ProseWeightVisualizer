@@ -163,9 +163,9 @@ description: "Task list for Cache Profiler (CacheScope)"
 
 **Independent test**: Reconstruct a turn's prefix, confirm a confidence grade is attached, predicted tokens are calibrated against `usage`, and no figure is shown as exact.
 
-- [ ] T040 [US7] Probe the installed Claude Code transcript format **from the system** (Principle XI) and document the reconstruction confidence grades against what it exposes, in `src/proseweight/cache/ingest/claude_code_reconstruct.py`
-- [ ] T041 [US7] Implement byte-level prefix + breakpoint reconstruction with an explicit confidence band and `usage` calibration — on disagreement, **lower confidence, never adjust the figure**; show a band (FR-024) (depends on T040, T026)
-- [ ] T042 [P] [US7] Unit test `tests/unit/test_cache_reconstruct.py` — confidence attached, calibrated against `usage`, never exact, band shown (SC-006)
+- [X] T040 [US7] Probe the installed Claude Code transcript format **from the system** (Principle XI) and document the reconstruction confidence grades against what it exposes, in `src/proseweight/cache/ingest/claude_code_reconstruct.py`
+- [X] T041 [US7] Implement byte-level prefix + breakpoint reconstruction with an explicit confidence band and `usage` calibration — on disagreement, **lower confidence, never adjust the figure**; show a band (FR-024) (depends on T040, T026)
+- [X] T042 [P] [US7] Unit test `tests/unit/test_cache_reconstruct.py` — confidence attached, calibrated against `usage`, never exact, band shown (SC-006)
 
 ---
 
