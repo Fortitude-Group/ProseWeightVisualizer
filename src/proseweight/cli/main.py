@@ -25,6 +25,11 @@ for _stream in (sys.stdout, sys.stderr):
 
 app = typer.Typer(add_completion=False, help="Prose Weight Visualiser — prompt weight linter.")
 
+# CacheScope (feature 002) — additive command group; no change to the commands above.
+from proseweight.cache.cli import cache_app  # noqa: E402
+
+app.add_typer(cache_app, name="cache")
+
 
 def _summary(verdict: Verdict) -> str:
     r = verdict.run

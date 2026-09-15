@@ -1,0 +1,23 @@
+{
+  "pricing_version": "2026-09",
+  "effective_date": "2026-09-01",
+  "fx_date": "2026-09-01",
+  "usd_gbp": 0.79,
+  "_note": "prices change — edit me (per-model rates, minimums, FX and dates). Verified 2026-09-14 against the published Anthropic prompt-caching reference; write_mult_1h is the published 2.0 — reconfirm against the live pricing row before relying on a production figure.",
+  "assumptions": {
+    "monthly_requests": 1000,
+    "bytes_per_token": 4
+  },
+  "models": {
+    "claude-opus-5":     {"base_input_rate_usd_per_mtok": 5.0,  "write_mult_5m": 1.25, "write_mult_1h": 2.0, "read_mult": 0.1,   "min_cacheable_tokens": 512},
+    "claude-fable-5-1":  {"base_input_rate_usd_per_mtok": 10.0, "write_mult_5m": 1.25, "write_mult_1h": 2.0, "read_mult": 0.025, "min_cacheable_tokens": 512},
+    "claude-fable-5":    {"base_input_rate_usd_per_mtok": 10.0, "write_mult_5m": 1.25, "write_mult_1h": 2.0, "read_mult": 0.025, "min_cacheable_tokens": 512},
+    "claude-opus-4-8":   {"base_input_rate_usd_per_mtok": 5.0,  "write_mult_5m": 1.25, "write_mult_1h": 2.0, "read_mult": 0.1,   "min_cacheable_tokens": 1024},
+    "claude-sonnet-5":   {"base_input_rate_usd_per_mtok": 2.0,  "write_mult_5m": 1.25, "write_mult_1h": 2.0, "read_mult": 0.1,   "min_cacheable_tokens": 1024},
+    "claude-sonnet-4-6": {"base_input_rate_usd_per_mtok": 3.0,  "write_mult_5m": 1.25, "write_mult_1h": 2.0, "read_mult": 0.1,   "min_cacheable_tokens": 1024},
+    "claude-opus-4-7":   {"base_input_rate_usd_per_mtok": 5.0,  "write_mult_5m": 1.25, "write_mult_1h": 2.0, "read_mult": 0.1,   "min_cacheable_tokens": 2048},
+    "claude-opus-4-6":   {"base_input_rate_usd_per_mtok": 5.0,  "write_mult_5m": 1.25, "write_mult_1h": 2.0, "read_mult": 0.1,   "min_cacheable_tokens": 4096},
+    "claude-haiku-4-5":  {"base_input_rate_usd_per_mtok": 1.0,  "write_mult_5m": 1.25, "write_mult_1h": 2.0, "read_mult": 0.1,   "min_cacheable_tokens": 4096}
+  },
+  "fallback_model": "claude-opus-5"
+}

@@ -71,3 +71,4 @@ ignore = ["E501", "UP042"]
 [tool.ruff.lint.per-file-ignores]
 # B008: Typer's Argument()/Option() defaults are function calls by design.
 "src/proseweight/cli/*.py" = ["B008"]
+"src/proseweight/cache/cli.py" = ["B008"]
