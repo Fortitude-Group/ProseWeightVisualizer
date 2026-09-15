@@ -26,10 +26,14 @@ class TurnView:
     byte_len: int
     cache_read_input_tokens: int
     cache_creation_input_tokens: int
+    diagnostics: dict | None = None
 
 
 def _turn_view(store: CacheStore, row) -> TurnView:
+    import json as _json
+
     data = store.get_blob(row["prefix_hash"]) or b""
+    diag_json = row["diagnostics_json"]
     return TurnView(
         id=row["id"],
         lineage_id=row["lineage_id"],
@@ -41,6 +45,7 @@ def _turn_view(store: CacheStore, row) -> TurnView:
         byte_len=len(data),
         cache_read_input_tokens=row["cache_read_input_tokens"],
         cache_creation_input_tokens=row["cache_creation_input_tokens"],
+        diagnostics=_json.loads(diag_json) if diag_json else None,
     )
 
 

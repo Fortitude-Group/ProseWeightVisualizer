@@ -125,9 +125,9 @@ description: "Task list for Cache Profiler (CacheScope)"
 
 **Independent test**: For a captured turn with a divergence + present `usage`/diagnostics, the reconciliation shows predicted vs measured level and recomputed-vs-missed tokens and flags a mismatch.
 
-- [ ] T029 [P] [US4] Implement reconciliation in `src/proseweight/cache/core/reconcile.py` — predicted recomputed vs measured `cache_read`/`cache_creation` drop; parse `response.diagnostics` **defensively** (payload sub-fields unverified, R8 — absent ⇒ `no_measurement`, never `agree`); compute the result's aggregate `validity` block (agreement_rate over diverging turns with measurement + disagreeing ids, SC-003) (depends on T025, T027)
-- [ ] T030 [US4] Add opt-in diagnostics-beta injection to the proxy in `cache/proxy/server.py` — `client.beta.messages.*` + `cache-diagnosis-2026-04-07`, thread `previous_message_id`, PAYG only, passive by default (depends on T015, T029)
-- [ ] T031 [P] [US4] Unit test `tests/unit/test_cache_reconcile.py` — predicted vs read-drop; `level_mismatch` flagged; absent diagnostics ⇒ `no_measurement` (never `agree`); **aggregate `validity.agreement_rate` computed over only measured diverging turns with disagreeing ids listed** (SC-003)
+- [X] T029 [P] [US4] Implement reconciliation in `src/proseweight/cache/core/reconcile.py` — predicted recomputed vs measured `cache_read`/`cache_creation` drop; parse `response.diagnostics` **defensively** (payload sub-fields unverified, R8 — absent ⇒ `no_measurement`, never `agree`); compute the result's aggregate `validity` block (agreement_rate over diverging turns with measurement + disagreeing ids, SC-003) (depends on T025, T027)
+- [X] T030 [US4] Add opt-in diagnostics-beta injection to the proxy in `cache/proxy/server.py` — `client.beta.messages.*` + `cache-diagnosis-2026-04-07`, thread `previous_message_id`, PAYG only, passive by default (depends on T015, T029)
+- [X] T031 [P] [US4] Unit test `tests/unit/test_cache_reconcile.py` — predicted vs read-drop; `level_mismatch` flagged; absent diagnostics ⇒ `no_measurement` (never `agree`); **aggregate `validity.agreement_rate` computed over only measured diverging turns with disagreeing ids listed** (SC-003)
 
 ---
 

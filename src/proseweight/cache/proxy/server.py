@@ -70,6 +70,32 @@ def _opt_int(v: Any) -> int | None:
     return None if v is None else int(v)
 
 
+def _inject_diagnostics(body: bytes, previous_message_id: str | None) -> bytes:
+    """Add ``diagnostics: {previous_message_id}`` to a /v1/messages request body.
+    Leaves the body unchanged if it is not JSON (best-effort, never breaks the request).
+    """
+    parsed = _safe_json(body)
+    if parsed is None:
+        return body
+    parsed["diagnostics"] = {"previous_message_id": previous_message_id}
+    return json.dumps(parsed).encode("utf-8")
+
+
+def _with_beta(headers: list[tuple[str, str]], beta: str) -> list[tuple[str, str]]:
+    """Append a beta flag to an existing anthropic-beta header, or add one."""
+    out: list[tuple[str, str]] = []
+    found = False
+    for k, v in headers:
+        if k.lower() == "anthropic-beta":
+            found = True
+            out.append((k, f"{v},{beta}" if v else beta))
+        else:
+            out.append((k, v))
+    if not found:
+        out.append(("anthropic-beta", beta))
+    return out
+
+
 def _usage_from_dict(u: dict[str, Any]) -> Usage:
     cache_creation = u.get("cache_creation") or {}
     return Usage(
@@ -165,24 +191,31 @@ def create_app(
     """
     owned_client = client is None
     http_client = client if client is not None else httpx.AsyncClient(base_url=upstream)
+    # In-process memory of the last response id, so the diagnostics beta can thread
+    # previous_message_id turn to turn (FR-014). Only used when diagnostics is on.
+    last = {"msg_id": None}
 
     async def _forward(request: Request) -> Response:
         path = request.url.path
         if request.url.query:
             path = f"{path}?{request.url.query}"
-        body = await request.body()
+        body = await request.body()  # the client's exact prefix bytes — captured as-is
         req_headers = _filtered_headers(request.headers, drop=_HOP_BY_HOP | {"host"})
 
+        is_messages = request.method == "POST" and path.split("?", 1)[0] == "/v1/messages"
+        upstream_body = body
+        if diagnostics and is_messages:
+            # Opt-in cache-diagnostics beta: add the header and thread previous_message_id.
+            # The injected body goes upstream; the ORIGINAL body is what we capture.
+            upstream_body = _inject_diagnostics(body, last["msg_id"])
+            req_headers = _with_beta(req_headers, "cache-diagnosis-2026-04-07")
+
         upstream_request = http_client.build_request(
-            request.method, path, content=body, headers=req_headers
+            request.method, path, content=upstream_body, headers=req_headers
         )
         upstream_response = await http_client.send(upstream_request, stream=True)
 
-        is_capture_target = (
-            request.method == "POST"
-            and path.split("?", 1)[0] == "/v1/messages"
-            and upstream_response.status_code == 200
-        )
+        is_capture_target = is_messages and upstream_response.status_code == 200
         content_type = upstream_response.headers.get("content-type", "")
         is_sse = "text/event-stream" in content_type
         resp_headers = _filtered_headers(upstream_response.headers, drop=_HOP_BY_HOP)
@@ -199,6 +232,9 @@ def create_app(
         await upstream_response.aclose()
 
         if is_capture_target:
+            rid = (_safe_json(resp_body) or {}).get("id")
+            if rid:
+                last["msg_id"] = rid
             _capture_buffered(
                 request_body=body,
                 response_body=resp_body,

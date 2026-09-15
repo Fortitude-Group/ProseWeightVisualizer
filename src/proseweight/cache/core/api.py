@@ -46,6 +46,7 @@ def analyse(store: CacheStore, pricing: Pricing | None = None) -> CacheScopeResu
     from proseweight.cache.core import breakpoints as bp_mod
     from proseweight.cache.core import divergence as div_mod
     from proseweight.cache.core import lineage as lin_mod
+    from proseweight.cache.core import reconcile as recon_mod
     from proseweight.cache.core.contracts import BreakpointState
 
     pricing = pricing or Pricing.load()
@@ -90,6 +91,13 @@ def analyse(store: CacheStore, pricing: Pricing | None = None) -> CacheScopeResu
             )
             recomputed = max(0, (turn.byte_len - offset) // max(1, bpt))
             invalidated = [b.index for b in bps if b.state is BreakpointState.RECOMPUTED]
+            reconciliation = recon_mod.reconcile(
+                predicted_recomputed_tokens=recomputed,
+                cur_cache_creation=turn.cache_creation_input_tokens,
+                cur_cache_read=turn.cache_read_input_tokens,
+                prev_cache_read=prev.cache_read_input_tokens,
+                diagnostics=turn.diagnostics,
+            )
             divergences_out.append({
                 "id": f"div_{turn.id}",
                 "lineage_id": lineage_id,
@@ -101,7 +109,7 @@ def analyse(store: CacheStore, pricing: Pricing | None = None) -> CacheScopeResu
                 "avoidable": avoidable,
                 "predicted_recomputed_tokens": recomputed,
                 "invalidated_breakpoints": invalidated,
-                "reconciliation": None,  # US4
+                "reconciliation": reconciliation,
                 # ride-along fields for cost attribution + ledger (US5)
                 "model_id": turn.model_id,
                 "source_kind": turn.source_kind,
@@ -114,6 +122,7 @@ def analyse(store: CacheStore, pricing: Pricing | None = None) -> CacheScopeResu
 
     attributions = cost_mod.attribute(divergences_out, pricing)
     rollups = ledger_mod.rollup(attributions, "month")
+    validity = recon_mod.validity_summary(divergences_out)
 
     return CacheScopeResult(
         pricing=pricing.stamp(),
@@ -123,6 +132,7 @@ def analyse(store: CacheStore, pricing: Pricing | None = None) -> CacheScopeResu
         breakpoints=breakpoints_out,
         attributions=attributions,
         rollups=rollups,
+        validity=validity,
     ).validate()
 
 

@@ -157,11 +157,12 @@ def _pred_vs_measured(result: dict) -> str:
         return "<p class='muted'>No divergences to reconcile.</p>"
     rows = ["<table class='pvm'><thead><tr><th>cause</th><th>predicted recompute (tokens)</th><th>measured</th><th>delta</th></tr></thead><tbody>"]
     for d in divs:
-        rec = d.get("reconciliation")
-        if rec and rec.get("measured_read_drop") is not None:
-            measured = str(rec["measured_read_drop"])
-            delta = rec.get("agreement", "")
-            flag = "" if delta == "agree" else " class='flag'"
+        rec = d.get("reconciliation") or {}
+        agreement = rec.get("agreement", "no_measurement")
+        if agreement != "no_measurement":
+            measured = str(rec.get("measured_missed_tokens") if rec.get("measured_missed_tokens") is not None else rec.get("measured_read_drop"))
+            delta = agreement
+            flag = "" if agreement == "agree" else " class='flag'"
         else:
             measured, delta, flag = "no measurement", "—", ""
         rows.append(f"<tr{flag}><td>{_esc(d['cause'])}</td><td>{d['predicted_recomputed_tokens']}</td><td>{_esc(measured)}</td><td>{_esc(delta)}</td></tr>")
