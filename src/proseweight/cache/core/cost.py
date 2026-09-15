@@ -27,9 +27,11 @@ def attribute(divergences: list[dict], pricing: Pricing) -> list[dict]:
     for d in divergences:
         if not d.get("avoidable"):
             continue
+        wasted_tokens = int(d.get("predicted_recomputed_tokens", 0))
+        if wasted_tokens <= 0:
+            continue  # nothing was cached to lose (e.g. a never-cached prefix, SC-010)
         model_id = d.get("model_id", "")
         mp = pricing.for_model(model_id)
-        wasted_tokens = int(d.get("predicted_recomputed_tokens", 0))
         wasted_gbp = mp.waste_gbp(wasted_tokens, pricing.usd_gbp)
         is_payg = d.get("source_kind") == SourceKind.API_PROXY.value
         billing = BillingModel.PAYG if is_payg else BillingModel.SUBSCRIPTION

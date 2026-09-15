@@ -111,6 +111,32 @@ score.
 - An optional frontier API judge (Anthropic, key from `ANTHROPIC_API_KEY` only) is available;
   runs that use it are flagged best-effort and waive same-seed reproducibility.
 
+## CacheScope (cache profiler)
+
+The weight linter asks which of your instructions do anything. CacheScope, a sibling that
+shares the same bench, asks which of your bytes cost you money for nothing. It captures your
+real Claude traffic locally, byte-diffs why each prompt-cache miss happened, maps it onto the
+real cache breakpoints, and prices the avoidable waste: your CRLF line endings cost you £4.12
+this month, and here is the byte that did it.
+
+- `proseweight cache lint <file>...` static cache-hygiene lint with no captured data (CRLF
+  drift, trailing whitespace, volatile headers, concatenation order), each finding an
+  estimated monthly cost. Add `--baseline` for the CI gate: it fails a commit that makes a
+  file cache-hostile, with the cost in the message.
+- `proseweight cache serve` a local recording proxy. Point an app at it with
+  `ANTHROPIC_BASE_URL` and it captures the exact bytes and the reported usage. `--diagnostics`
+  opts into Anthropic's cache-diagnostics beta.
+- `proseweight cache ingest <transcript>` reads Claude Code session transcripts for the
+  subscription path; `--reconstruct` rebuilds the growing prefix with a calibrated confidence.
+- `proseweight cache analyse` / `ledger` / `export` the divergence analysis, the waste ledger
+  with a headline figure, and a self-contained HTML report with a byte-level diff on every miss.
+
+Everything stays on your machine, and the meter forks by how you pay: measured pounds on the
+pay-as-you-go API, quota plus a labelled shadow-price on a subscription (where a pound bill
+would be a lie). The cost engine is deliberately self-contained behind a versioned contract, so
+it sits cleanly between two sibling tools: OmnisRouter captures the traffic, CacheScope analyses
+it, and OmnisVigil reports on it.
+
 ## Frontier subjects (Anthropic)
 
 You can profile a closed API model as the subject instead of a local one, either from the

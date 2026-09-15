@@ -196,11 +196,11 @@ description: "Task list for Cache Profiler (CacheScope)"
 
 **Purpose**: The remaining executable guarantees and the additive-clean close-out.
 
-- [ ] T048 [P] Gate `tests/gates/test_cache_result_determinism.py` — fixed captures + fixed `pricing.json` ⇒ byte-identical `CacheScopeResult` (modulo `generated_at`) (Principle IV)
-- [ ] T049 [P] Gate `tests/gates/test_cache_figures_stamped.py` — 100% of result figures carry pricing/effective/FX stamps + measured-vs-attributed flag (SC-002 / FR-030)
-- [ ] T050 [P] Gate `tests/gates/test_cache_never_cached.py` — no `never_cached` breakpoint appears in any attribution or rollup (SC-010)
-- [ ] T051 [P] Update `README.md` with the `proseweight cache` command group and the OmnisRouter→CacheScope→OmnisVigil shape (write with `writing-no-slop`)
-- [ ] T052 Final verification: run the full suite incl. the `001` set (SC-009), the transplant import-lint (SC-008), and `ruff`/build clean; confirm zero edits to `001` modules and a clean additive delta
+- [X] T048 [P] Gate `tests/gates/test_cache_result_determinism.py` — fixed captures + fixed `pricing.json` ⇒ byte-identical `CacheScopeResult` (modulo `generated_at`) (Principle IV)
+- [X] T049 [P] Gate `tests/gates/test_cache_figures_stamped.py` — 100% of result figures carry pricing/effective/FX stamps + measured-vs-attributed flag (SC-002 / FR-030)
+- [X] T050 [P] Gate `tests/gates/test_cache_never_cached.py` — no `never_cached` breakpoint appears in any attribution or rollup (SC-010)
+- [X] T051 [P] Update `README.md` with the `proseweight cache` command group and the OmnisRouter→CacheScope→OmnisVigil shape (write with `writing-no-slop`)
+- [X] T052 Final verification: run the full suite incl. the `001` set (SC-009), the transplant import-lint (SC-008), and `ruff`/build clean; confirm zero edits to `001` modules and a clean additive delta
 - [ ] T053 Tracker sync (Principle VII — **perform first, keep current throughout**): mirror this T001–T052 breakdown onto the ADO board (project ProseWeightVisualizer) as Feature → Story (US1–US9) → Task items under the correct parents; set each item's state as work starts/completes; link every commit to its work item by hash (`AB#<id>`) and record the delivering commit hash on each item. A board that disagrees with this task list is a defect to fix, not tolerate.
 
 ---

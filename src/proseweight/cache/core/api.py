@@ -89,8 +89,12 @@ def analyse(store: CacheStore, pricing: Pricing | None = None) -> CacheScopeResu
             cause, avoidable = div_mod.classify(
                 prev.prefix_bytes, turn.prefix_bytes, offset, prev.model_id, turn.model_id
             )
-            recomputed = max(0, (turn.byte_len - offset) // max(1, bpt))
-            invalidated = [b.index for b in bps if b.state is BreakpointState.RECOMPUTED]
+            # Waste is the cached tokens actually thrown away: the recomputed blocks.
+            # A never-cached (below-minimum) block recomputes nothing, so it contributes
+            # zero — SC-010 holds by construction, no waste on a never-cached prefix.
+            recomputed_bps = [b for b in bps if b.state is BreakpointState.RECOMPUTED]
+            recomputed = max((b.capped_tokens for b in recomputed_bps), default=0)
+            invalidated = [b.index for b in recomputed_bps]
             reconciliation = recon_mod.reconcile(
                 predicted_recomputed_tokens=recomputed,
                 cur_cache_creation=turn.cache_creation_input_tokens,
