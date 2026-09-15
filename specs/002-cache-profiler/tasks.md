@@ -150,10 +150,10 @@ description: "Task list for Cache Profiler (CacheScope)"
 
 **Independent test**: Render each view from a captured dataset; heatmap y-axis is breakpoints with a distinct never-cached state, clicking a miss opens the byte diff, the ledger shows a headline + drill-down, and prediction-vs-measured flags a seeded delta.
 
-- [ ] T036 [P] [US6] Implement the self-contained HTML export adapter in `src/proseweight/cache/report/export_html.py` — inline CSS/SVG/JS; heatmap (breakpoints y-axis, hit/recomputed/new/never-cached), cost ledger (stacked + headline + drill), prediction-vs-measured; click-a-miss → byte diff; brand-neutral default (reuses the `001` self-contained-export pattern, **no import**) (depends on T027, T032, T033)
-- [ ] T037 [P] [US6] Implement the PNG summary card in `src/proseweight/cache/report/png_card.py` via `Pillow`, `--theme neutral|fortitude` (depends on T036)
-- [ ] T038 [US6] Add `proseweight cache export <result.json> --html --png --theme` to `cache/cli.py` (depends on T036, T037, T004)
-- [ ] T039 [P] [US6] Snapshot test `tests/unit/test_cache_export.py` — three views present, never-cached state distinct, seeded delta flagged, brand-neutral by default
+- [X] T036 [P] [US6] Implement the self-contained HTML export adapter in `src/proseweight/cache/report/export_html.py` — inline CSS/SVG/JS; heatmap (breakpoints y-axis, hit/recomputed/new/never-cached), cost ledger (stacked + headline + drill), prediction-vs-measured; click-a-miss → byte diff; brand-neutral default (reuses the `001` self-contained-export pattern, **no import**) (depends on T027, T032, T033)
+- [X] T037 [P] [US6] Implement the PNG summary card in `src/proseweight/cache/report/png_card.py` via `Pillow`, `--theme neutral|fortitude` (depends on T036)
+- [X] T038 [US6] Add `proseweight cache export <result.json> --html --png --theme` to `cache/cli.py` (depends on T036, T037, T004)
+- [X] T039 [P] [US6] Snapshot test `tests/unit/test_cache_export.py` — three views present, never-cached state distinct, seeded delta flagged, brand-neutral by default
 
 ---
 

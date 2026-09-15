@@ -196,6 +196,45 @@ def ledger_cmd(
     )
 
 
+@cache_app.command("export")
+def export_cmd(
+    result_json: str = typer.Argument(None, help="A CacheScopeResult JSON file. Omit to analyse --db live."),
+    html_out: str = typer.Option(..., "--html", help="Output self-contained HTML path."),
+    png_out: str = typer.Option(None, "--png", help="Optional PNG summary card path."),
+    db: str = typer.Option(None, "--db", help="Capture store, for byte-diff context (and live analyse)."),
+    theme: str = typer.Option("neutral", "--theme", help="neutral | fortitude | dark."),
+    pricing_path: str = typer.Option(None, "--pricing", help="Path to an editable pricing.json."),
+) -> None:
+    """Render the three views to a self-contained HTML (+ optional PNG) — no server (US6)."""
+    import json as _json
+
+    from proseweight.cache.core.store import CacheStore
+    from proseweight.cache.report.export_html import export_html
+    from proseweight.cache.report.png_card import render_png
+
+    store = CacheStore(db) if db else None
+    try:
+        if result_json:
+            result = _json.loads(Path(result_json).read_text(encoding="utf-8"))
+        elif store is not None:
+            from proseweight.cache.core.api import analyse
+            from proseweight.cache.core.pricing import Pricing
+
+            result = analyse(store, pricing=Pricing.load(pricing_path)).to_dict()
+        else:
+            typer.echo("Provide a result JSON argument or --db to analyse live.")
+            raise typer.Exit(2)
+
+        Path(html_out).write_text(export_html(result, store=store, theme=theme), encoding="utf-8")
+        typer.echo(f"Wrote {html_out}")
+        if png_out:
+            render_png(result, png_out, theme=theme)
+            typer.echo(f"Wrote {png_out}")
+    finally:
+        if store is not None:
+            store.close()
+
+
 @cache_app.command("prune")
 def prune_cmd(
     db: str = typer.Option("cache.db", "--db", help="Capture store path."),
