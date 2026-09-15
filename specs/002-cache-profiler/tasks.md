@@ -137,10 +137,10 @@ description: "Task list for Cache Profiler (CacheScope)"
 
 **Independent test**: A month of captures with a recurring CRLF divergence yields a headline waste figure per cause; PAYG shows measured £, subscription shows quota + labelled shadow-price; every figure carries pricing/effective/FX stamps.
 
-- [ ] T032 [P] [US5] Implement cost attribution + meter fork in `src/proseweight/cache/core/cost.py` — `recomputed_tokens × base_rate × (write_mult − read_mult)` → GBP; PAYG measured vs subscription quota + `is_shadow_price`; amortisation caveat; provenance stamps; exclude non-avoidable (depends on T010, T027)
-- [ ] T033 [P] [US5] Implement ledger rollups in `src/proseweight/cache/core/ledger.py` — day/week/month × cause × model, headline per cause (depends on T032)
-- [ ] T034 [US5] Wire `ledger()` in `api.py` and add `proseweight cache ledger` (`--period`) to `cache/cli.py` — terminal summary forks the meter and states the excluded set (Principle XII) (depends on T012, T033, T004)
-- [ ] T035 [P] [US5] Unit test `tests/unit/test_cache_cost.py` — formula; subscription never a bill (SC-006); all three stamps present (SC-002); non-avoidable excluded
+- [X] T032 [P] [US5] Implement cost attribution + meter fork in `src/proseweight/cache/core/cost.py` — `recomputed_tokens × base_rate × (write_mult − read_mult)` → GBP; PAYG measured vs subscription quota + `is_shadow_price`; amortisation caveat; provenance stamps; exclude non-avoidable (depends on T010, T027)
+- [X] T033 [P] [US5] Implement ledger rollups in `src/proseweight/cache/core/ledger.py` — day/week/month × cause × model, headline per cause (depends on T032)
+- [X] T034 [US5] Wire `ledger()` in `api.py` and add `proseweight cache ledger` (`--period`) to `cache/cli.py` — terminal summary forks the meter and states the excluded set (Principle XII) (depends on T012, T033, T004)
+- [X] T035 [P] [US5] Unit test `tests/unit/test_cache_cost.py` — formula; subscription never a bill (SC-006); all three stamps present (SC-002); non-avoidable excluded
 
 ---
 

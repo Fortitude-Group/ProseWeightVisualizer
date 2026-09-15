@@ -140,6 +140,62 @@ def analyse_cmd(
         typer.echo(f"  {mark}  {d['cause']:<20} @byte {d['first_divergent_offset']} (line {d['line']})")
 
 
+@cache_app.command("ledger")
+def ledger_cmd(
+    db: str = typer.Option("cache.db", "--db", help="Capture store path."),
+    period: str = typer.Option("month", "--period", help="day | week | month."),
+    json_out: str = typer.Option(None, "--json", help="Write rollups JSON ('-' for stdout)."),
+    pricing_path: str = typer.Option(None, "--pricing", help="Path to an editable pricing.json."),
+) -> None:
+    """Aggregated cache waste by cause and period, with the meter forked by billing model (US5)."""
+    import json as _json
+
+    from proseweight.cache.core.api import ledger as run_ledger
+    from proseweight.cache.core.pricing import Pricing
+    from proseweight.cache.core.store import CacheStore
+
+    pricing = Pricing.load(pricing_path)
+    store = CacheStore(db)
+    try:
+        rollups = run_ledger(store, period=period, pricing=pricing)
+    finally:
+        store.close()
+
+    if json_out:
+        payload = _json.dumps(rollups, indent=2)
+        if json_out == "-":
+            typer.echo(payload)
+        else:
+            Path(json_out).write_text(payload, encoding="utf-8")
+            typer.echo(f"Wrote {json_out}")
+
+    stamp = pricing.stamp()
+    typer.echo(
+        f"CacheScope · Ledger   store {db}   pricing {stamp.pricing_version} "
+        f"(eff {stamp.effective_date}, fx {stamp.fx_date})"
+    )
+    if not rollups:
+        typer.echo("No avoidable cache waste attributed yet.")
+        return
+    headline = next((r for r in rollups if r["headline"]), rollups[0])
+    meter = "shadow-price" if headline["billing_model"] == "subscription" else "measured"
+    typer.echo(
+        f"Headline: {headline['cause']} cost £{headline['wasted_gbp']:.2f} "
+        f"per {period} ({meter}" + (f", {headline['wasted_quota_tokens']} quota tokens" if headline["wasted_quota_tokens"] else "") + ")."
+    )
+    typer.echo("  CAUSE               MODEL                PERIOD      £*        METER")
+    for r in rollups:
+        m = "shadow-price" if r["billing_model"] == "subscription" else "measured"
+        typer.echo(
+            f"  {(r['cause'] or '?'):<18}  {(r['model_id'] or 'all'):<18}  {r['period_key']:<10}  "
+            f"{r['wasted_gbp']:>7.2f}   {m}"
+        )
+    typer.echo(
+        "  * measured £ on PAYG; a subscription figure is a shadow-price counterfactual, not a bill. "
+        "Excludes non-avoidable edits and never-cached prefixes."
+    )
+
+
 @cache_app.command("prune")
 def prune_cmd(
     db: str = typer.Option("cache.db", "--db", help="Capture store path."),

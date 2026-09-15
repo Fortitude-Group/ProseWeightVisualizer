@@ -102,7 +102,18 @@ def analyse(store: CacheStore, pricing: Pricing | None = None) -> CacheScopeResu
                 "predicted_recomputed_tokens": recomputed,
                 "invalidated_breakpoints": invalidated,
                 "reconciliation": None,  # US4
+                # ride-along fields for cost attribution + ledger (US5)
+                "model_id": turn.model_id,
+                "source_kind": turn.source_kind,
+                "timestamp": turn.timestamp,
+                "cache_creation_input_tokens": turn.cache_creation_input_tokens,
             })
+
+    from proseweight.cache.core import cost as cost_mod
+    from proseweight.cache.core import ledger as ledger_mod
+
+    attributions = cost_mod.attribute(divergences_out, pricing)
+    rollups = ledger_mod.rollup(attributions, "month")
 
     return CacheScopeResult(
         pricing=pricing.stamp(),
@@ -110,9 +121,18 @@ def analyse(store: CacheStore, pricing: Pricing | None = None) -> CacheScopeResu
         lineages=lineages_out,
         divergences=divergences_out,
         breakpoints=breakpoints_out,
+        attributions=attributions,
+        rollups=rollups,
     ).validate()
 
 
-def ledger(store: CacheStore, period: str = "month", pricing: Pricing | None = None) -> list[dict]:  # noqa: ARG001
-    """Aggregated waste by period × cause × model (Release 2, US5)."""
-    raise NotImplementedError("ledger() lands in Release 2 (US5).")
+def ledger(store: CacheStore, period: str = "month", pricing: Pricing | None = None) -> list[dict]:
+    """Aggregated waste by period × cause × model, headline flagged (US5 / FR-018).
+
+    Re-rolls the attributions from ``analyse`` at the requested period. Pound totals
+    are measured for PAYG rows and shadow-price for subscription rows.
+    """
+    from proseweight.cache.core import ledger as ledger_mod
+
+    result = analyse(store, pricing=pricing)
+    return ledger_mod.rollup(result.attributions, period)
