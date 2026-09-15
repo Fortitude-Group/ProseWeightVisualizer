@@ -103,6 +103,43 @@ def ingest_cmd(
     typer.echo(f"Ingested {total} turns from {len(targets)} transcript(s) into {db} (source: claude_code_transcript).")
 
 
+@cache_app.command("analyse")
+def analyse_cmd(
+    db: str = typer.Option("cache.db", "--db", help="Capture store path."),
+    json_out: str = typer.Option(None, "--json", help="Write CacheScopeResult JSON ('-' for stdout)."),
+    pricing_path: str = typer.Option(None, "--pricing", help="Path to an editable pricing.json."),
+) -> None:
+    """Analyse captures: lineage → divergence → breakpoint survival (US3)."""
+    import json as _json
+
+    from proseweight.cache.core.api import analyse as run_analyse
+    from proseweight.cache.core.pricing import Pricing
+    from proseweight.cache.core.store import CacheStore
+
+    store = CacheStore(db)
+    try:
+        result = run_analyse(store, pricing=Pricing.load(pricing_path))
+    finally:
+        store.close()
+
+    if json_out:
+        payload = _json.dumps(result.to_dict(), indent=2)
+        if json_out == "-":
+            typer.echo(payload)
+        else:
+            Path(json_out).write_text(payload, encoding="utf-8")
+            typer.echo(f"Wrote {json_out}")
+
+    avoidable = [d for d in result.divergences if d["avoidable"]]
+    typer.echo(
+        f"CacheScope · Analyse   {len(result.lineages)} lineage(s), "
+        f"{len(result.divergences)} divergence(s) ({len(avoidable)} avoidable)."
+    )
+    for d in result.divergences:
+        mark = "avoidable" if d["avoidable"] else "intended "
+        typer.echo(f"  {mark}  {d['cause']:<20} @byte {d['first_divergent_offset']} (line {d['line']})")
+
+
 @cache_app.command("prune")
 def prune_cmd(
     db: str = typer.Option("cache.db", "--db", help="Capture store path."),

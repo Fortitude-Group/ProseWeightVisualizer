@@ -37,11 +37,80 @@ def lint(
     ).validate()
 
 
-def analyse(store: CacheStore, pricing: Pricing | None = None) -> CacheScopeResult:  # noqa: ARG001
-    """Lineage → divergence → breakpoint → reconciliation → cost (Release 2, US3–US5)."""
-    raise NotImplementedError(
-        "analyse() lands in Release 2 (US3–US5); Release 1 provides ingest() and lint()."
-    )
+def analyse(store: CacheStore, pricing: Pricing | None = None) -> CacheScopeResult:
+    """Lineage → divergence → breakpoint state, over the captured store (US3).
+
+    Reconciliation (US4) and cost attribution/ledger (US5) build on this; this
+    release populates lineages, divergences and breakpoint survival states.
+    """
+    from proseweight.cache.core import breakpoints as bp_mod
+    from proseweight.cache.core import divergence as div_mod
+    from proseweight.cache.core import lineage as lin_mod
+    from proseweight.cache.core.contracts import BreakpointState
+
+    pricing = pricing or Pricing.load()
+    bpt = pricing.bytes_per_token
+    lineage_map = lin_mod.lineages(store)
+
+    lineages_out: list[dict] = []
+    divergences_out: list[dict] = []
+    breakpoints_out: list[dict] = []
+
+    for lineage_id, turns in lineage_map.items():
+        lineages_out.append({
+            "id": lineage_id,
+            "source_kind": turns[0].source_kind if turns else None,
+            "model_id": turns[0].model_id if turns else None,
+            "turns": [t.id for t in turns],
+        })
+        for i, turn in enumerate(turns):
+            model_min = pricing.for_model(turn.model_id).min_cacheable_tokens
+            bps = bp_mod.resolve(turn.prefix_bytes, model_min_tokens=model_min, bytes_per_token=bpt)
+
+            if i == 0:
+                # lineage head: freshly cached, no predecessor to diff (FR-008)
+                bp_mod.assign_states(bps, divergence_offset=None, model_min_tokens=model_min)
+                for b in bps:
+                    if b.state is BreakpointState.HIT:
+                        b.state = BreakpointState.NEW
+                    breakpoints_out.append(b.to_dict(turn.id))
+                continue
+
+            prev = turns[i - 1]
+            offset = div_mod.first_divergence(prev.prefix_bytes, turn.prefix_bytes)
+            bp_mod.assign_states(bps, divergence_offset=(None if offset < 0 else offset), model_min_tokens=model_min)
+            for b in bps:
+                breakpoints_out.append(b.to_dict(turn.id))
+
+            if offset < 0:
+                continue  # identical prefix, a clean cache hit — no divergence record
+
+            cause, avoidable = div_mod.classify(
+                prev.prefix_bytes, turn.prefix_bytes, offset, prev.model_id, turn.model_id
+            )
+            recomputed = max(0, (turn.byte_len - offset) // max(1, bpt))
+            invalidated = [b.index for b in bps if b.state is BreakpointState.RECOMPUTED]
+            divergences_out.append({
+                "id": f"div_{turn.id}",
+                "lineage_id": lineage_id,
+                "prev_turn_id": prev.id,
+                "turn_id": turn.id,
+                "first_divergent_offset": offset,
+                "line": div_mod.line_of(turn.prefix_bytes, offset),
+                "cause": cause.value,
+                "avoidable": avoidable,
+                "predicted_recomputed_tokens": recomputed,
+                "invalidated_breakpoints": invalidated,
+                "reconciliation": None,  # US4
+            })
+
+    return CacheScopeResult(
+        pricing=pricing.stamp(),
+        generated_at=datetime.now(UTC).isoformat(),
+        lineages=lineages_out,
+        divergences=divergences_out,
+        breakpoints=breakpoints_out,
+    ).validate()
 
 
 def ledger(store: CacheStore, period: str = "month", pricing: Pricing | None = None) -> list[dict]:  # noqa: ARG001
