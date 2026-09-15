@@ -68,3 +68,35 @@ The third is a promise about our own flagship result. We ran a vivid directive a
 - **Small local models.** The default subject is a small instruct model, chosen so a scan finishes on consumer hardware. Behaviour on a frontier model may differ, which is the whole reason we scope every number to its model rather than pretending otherwise.
 
 If any of this changes how you'd read a report, good. That was the point.
+
+# How CacheScope measures cache waste
+
+The weight linter answers "which of my instructions do anything?". CacheScope answers a different question about the same prompts: "which of my bytes cost me money for nothing?". Everything in that space today is static linting, rules about what probably breaks the cache. CacheScope is the version that measures what actually happened, and it earns its numbers the same way the linter does, by refusing to claim more than it can show.
+
+## Divergence, measured to the byte
+
+Prompt caching is a prefix match. Any byte change anywhere in the cached prefix throws away everything after it, and you pay to write the prefix again instead of reading it back cheap. So CacheScope captures your real traffic locally, groups the turns that share a cached prefix into a lineage, and byte-diffs each consecutive pair to the exact first byte that differs. That byte is the ground truth. Not a token, not an edit script, the actual offset the cache broke at. From there it classifies the cause: a CRLF that drifted in, trailing whitespace, a volatile header, a timestamp, a reordered concatenation, tool or system churn, a model swap, or a genuine edit you meant to make.
+
+## Measured cost versus attributed cause
+
+Two different things get called "cost" and CacheScope keeps them apart. The measured part is what the API reported: the usage fields tell you how many tokens were written to cache and how many were read from it, and those are facts. The attributed part is the story about why, which cause class was responsible, and that's an inference from the byte diff. A figure always says which it is. A predicted cause that measurement later contradicts lowers our confidence in the prediction, it never quietly rewrites the measured number.
+
+The price itself comes from a per-model table you can edit. Cache reads run about a tenth of the base input rate, a five-minute write about 1.25 times, a one-hour write about twice, and the read rate is genuinely per-model, so it lives in the table rather than as a constant in the code. Every figure is stamped with the pricing version, the effective date and the FX date it was computed under, because prices move and a number without that provenance is a number you can't trust six months later.
+
+## The meter forks, because a subscription has no bill
+
+If you're on the pay-as-you-go API, wasted cache writes cost real pounds and we show them as measured pounds. If you're on a Claude subscription there is no per-token bill, so pounds would be a lie. There the real meter is quota consumption, and any pound figure survives only as a clearly labelled shadow-price counterfactual, the "if you were paying per token this is what it would have been". This isn't a display toggle, it's a design constraint. A subscription figure is never presented as a bill.
+
+## Breakpoints, not fictional blocks
+
+Caching happens at up to four breakpoints per request, in tools then system then messages order, each caching the whole prefix up to its block. CacheScope maps the divergence onto those real breakpoints, not onto invented fixed-size chunks. A breakpoint whose prefix sits below the model's minimum cacheable length was never eligible to cache at all, and that minimum is per-model and not even monotonic across generations: 512 tokens on the newest models, but 1,024, 2,048, and 4,096 on various older ones. A prefix below the line is rendered as never-cached and carries no waste, because attributing a cost to something that could never have cached would be inventing money.
+
+## Known limitations
+
+- **Reconstruction fidelity.** On the subscription path the transcript doesn't contain the exact on-wire prefix, so the prefix is reconstructed, and a reconstructed figure always carries a confidence band and is never shown as exact. The proxy path captures the real bytes and is graded exact.
+- **Diagnostics availability.** Anthropic's cache-diagnostics beta is an optional corroborator, opt-in and API-only, and unavailable on subscription traffic. When it isn't there, reconciliation runs on the usage fields alone and records "no measurement" rather than treating silence as agreement.
+- **Token estimates.** Where a byte span has to be turned into a token count without a live count, it's estimated, and the estimate is banded, not dressed up as exact.
+- **Pricing and FX drift.** Rates and the exchange rate are stamped defaults you edit. A comparison across a pricing change is flagged as a confound, not reported as a saving or a regression that never happened.
+- **Amortisation.** A cache write you pay for once gets read back cheaply many times, so a single-event waste figure can overstate the net loss. Those figures carry an amortisation caveat so you don't read a one-off write as a recurring bill.
+
+If any of that changes how you'd read a cost figure, good. Same point as before.

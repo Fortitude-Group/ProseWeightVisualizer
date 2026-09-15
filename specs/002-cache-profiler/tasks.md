@@ -187,8 +187,8 @@ description: "Task list for Cache Profiler (CacheScope)"
 
 **Independent test**: The section describes divergence detection, measured-vs-attributed cost, the meter fork, the breakpoint model + per-model minimums, and the known limitations.
 
-- [ ] T046 [US9] Append the cache-cost section to `docs/methodology.md` (divergence detection, measured vs attributed, PAYG-vs-subscription meter fork, breakpoint model + per-model minimums, limitations: reconstruction fidelity, diagnostics availability, pricing drift, amortisation) — write with `writing-no-slop`
-- [ ] T047 [P] [US9] Doc-presence test `tests/unit/test_cache_methodology.py` — the section names each required topic
+- [X] T046 [US9] Append the cache-cost section to `docs/methodology.md` (divergence detection, measured vs attributed, PAYG-vs-subscription meter fork, breakpoint model + per-model minimums, limitations: reconstruction fidelity, diagnostics availability, pricing drift, amortisation) — write with `writing-no-slop`
+- [X] T047 [P] [US9] Doc-presence test `tests/unit/test_cache_methodology.py` — the section names each required topic
 
 ---
 
