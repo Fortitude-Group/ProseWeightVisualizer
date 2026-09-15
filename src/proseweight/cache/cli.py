@@ -21,13 +21,36 @@ def lint_cmd(
     json_out: str = typer.Option(None, "--json", help="Write CacheScopeResult JSON ('-' for stdout)."),
     model: str = typer.Option(None, "--model", help="Model id for the cost estimate (default: table fallback)."),
     pricing_path: str = typer.Option(None, "--pricing", help="Path to an editable pricing.json."),
+    baseline: str = typer.Option(None, "--baseline", help="CI gate: fail on a new cache-hostile finding vs this baseline."),
+    update_baseline: bool = typer.Option(False, "--update-baseline", help="Rewrite the baseline from the current findings."),
 ) -> None:
-    """Static cache-hygiene lint — no captured data, no API, no model runtime (US2)."""
+    """Static cache-hygiene lint — no captured data, no API, no model runtime (US2).
+
+    With --baseline, runs as a CI gate (US8): exit 1 on a new cache-hostile finding
+    with the estimated monthly cost, exit 3 on a pricing/model mismatch (confound).
+    """
     from proseweight.cache.core.api import lint as run_lint
     from proseweight.cache.core.pricing import Pricing
 
     pricing = Pricing.load(pricing_path)
     result = run_lint(list(files), pricing=pricing, model_id=model)
+    model_used = model or "claude-opus-5"
+
+    if update_baseline:
+        from proseweight.cache.ci.lint import make_baseline, write_baseline
+
+        target = baseline or "cache-lint-baseline.json"
+        write_baseline(target, make_baseline(result.lint_findings, model_used, pricing))
+        typer.echo(f"Wrote baseline {target} ({len(result.lint_findings)} findings).")
+        raise typer.Exit(0)
+
+    if baseline:
+        from proseweight.cache.ci.lint import load_baseline, run_gate
+
+        gate = run_gate(result.lint_findings, load_baseline(baseline), model_used, pricing)
+        for m in gate.messages:
+            typer.echo(m)
+        raise typer.Exit(gate.exit_code)
 
     if json_out:
         payload = json.dumps(result.to_dict(), indent=2)

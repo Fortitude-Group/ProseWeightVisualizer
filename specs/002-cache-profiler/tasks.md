@@ -175,9 +175,9 @@ description: "Task list for Cache Profiler (CacheScope)"
 
 **Independent test**: A CRLF-conversion edit → non-zero exit + £ in message; a benign edit → zero; a baseline pricing/model mismatch → confound exit.
 
-- [ ] T043 [US8] Implement the baseline regression gate in `src/proseweight/cache/ci/lint.py` — exit 0/1/2/3, estimated monthly £ in the failure message, pricing/model mismatch → confound (exit 3); `--baseline`/`--update-baseline` on `cache lint` (depends on T021, T032; shares the `001` `ci/` pattern)
-- [ ] T044 [P] [US8] GitHub Action wrapper in `src/proseweight/cache/ci/action/` mirroring the `001` action (depends on T043)
-- [ ] T045 [P] [US8] Integration test `tests/integration/test_cache_ci_gate.py` — CRLF edit → exit 1 + £; benign → exit 0; mismatch → exit 3 (SC-007)
+- [X] T043 [US8] Implement the baseline regression gate in `src/proseweight/cache/ci/lint.py` — exit 0/1/2/3, estimated monthly £ in the failure message, pricing/model mismatch → confound (exit 3); `--baseline`/`--update-baseline` on `cache lint` (depends on T021, T032; shares the `001` `ci/` pattern)
+- [X] T044 [P] [US8] GitHub Action wrapper in `src/proseweight/cache/ci/action/` mirroring the `001` action (depends on T043)
+- [X] T045 [P] [US8] Integration test `tests/integration/test_cache_ci_gate.py` — CRLF edit → exit 1 + £; benign → exit 0; mismatch → exit 3 (SC-007)
 
 ---
 

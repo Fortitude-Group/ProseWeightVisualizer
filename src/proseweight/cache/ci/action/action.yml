@@ -1,0 +1,25 @@
+name: "CacheScope cache-hygiene lint"
+description: "Fail the build if a commit makes a CLAUDE.md / .kb file cache-hostile, with the estimated monthly cost in the message."
+author: "Fortitude Omnis"
+
+inputs:
+  files:
+    description: "File(s) to lint (space-separated globs), e.g. CLAUDE.md .kb/*.md"
+    required: true
+  baseline:
+    description: "Path to the checked-in cache-lint baseline JSON."
+    required: true
+  model:
+    description: "Model id for the cost estimate (must match the baseline)."
+    required: false
+    default: "claude-opus-5"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install proseweight
+      shell: bash
+      run: pip install -e .
+    - name: Cache-hygiene lint against baseline
+      shell: bash
+      run: proseweight cache lint ${{ inputs.files }} --baseline "${{ inputs.baseline }}" --model "${{ inputs.model }}"
