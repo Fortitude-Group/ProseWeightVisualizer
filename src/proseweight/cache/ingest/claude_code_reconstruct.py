@@ -38,18 +38,22 @@ _BYTES_PER_TOKEN = 4
 
 
 def _content_text(content: Any) -> str:
-    """Flatten a message's content (string, or a list of blocks) to text."""
+    """Flatten a message's content to text.
+
+    Real transcripts nest arbitrarily: a string, a list of blocks, or a block whose
+    ``text``/``content`` is itself a list (e.g. a tool_result). Recurse so every part
+    reduces to a string and the join never sees a list.
+    """
     if isinstance(content, str):
         return content
+    if isinstance(content, dict):
+        inner = content.get("text")
+        if inner is None:
+            inner = content.get("content")
+        return _content_text(inner) if inner is not None else str(content.get("type", ""))
     if isinstance(content, list):
-        parts = []
-        for block in content:
-            if isinstance(block, dict):
-                parts.append(block.get("text") or block.get("content") or "")
-            else:
-                parts.append(str(block))
-        return " ".join(p for p in parts if p)
-    return ""
+        return " ".join(s for s in (_content_text(b) for b in content) if s)
+    return "" if content is None else str(content)
 
 
 def _usage(u: dict[str, Any]) -> Usage:

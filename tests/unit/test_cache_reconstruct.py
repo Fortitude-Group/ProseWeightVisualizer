@@ -6,7 +6,22 @@ import json
 
 from proseweight.cache.core.contracts import ConfidenceGrade, Usage
 from proseweight.cache.core.store import CacheStore
-from proseweight.cache.ingest.claude_code_reconstruct import _grade, reconstruct_transcript
+from proseweight.cache.ingest.claude_code_reconstruct import (
+    _content_text,
+    _grade,
+    reconstruct_transcript,
+)
+
+
+def test_content_text_handles_nested_list_blocks():
+    # real transcripts nest: a tool_result block whose content is itself a list
+    content = [
+        {"type": "text", "text": "hello"},
+        {"type": "tool_result", "content": [{"type": "text", "text": "nested"}]},
+        {"type": "tool_use", "content": None},
+    ]
+    out = _content_text(content)
+    assert "hello" in out and "nested" in out  # never raises on a list-valued block
 
 
 def test_grade_calibrates_against_usage_never_exact():
